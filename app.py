@@ -740,6 +740,18 @@ function debounceOpps() {
   clearTimeout(_oppDebounce);
   _oppDebounce = setTimeout(loadOpps, 500);
 }
+function applyPrixRange() {
+  const v = document.getElementById('oppPrixRange').value;
+  if (!v) {
+    document.getElementById('oppPrixMin').value = '';
+    document.getElementById('oppBudget').value = '';
+  } else {
+    const parts = v.split(',');
+    document.getElementById('oppPrixMin').value = parts[0];
+    document.getElementById('oppBudget').value = parts[1];
+  }
+  loadOpps();
+}
 function resetOppFiltres() {
   document.getElementById('oppCat').value = '';
   document.getElementById('oppMarque').value = '';
@@ -747,12 +759,13 @@ function resetOppFiltres() {
   document.getElementById('oppTaille').value = '';
   document.getElementById('oppPrixMin').value = '';
   document.getElementById('oppBudget').value = '';
+  document.getElementById('oppPrixRange').value = '';
   document.getElementById('oppTri').value = 'nouveaute';
   loadOpps();
 }
 async function loadOpps() {
   const cat     = document.getElementById('oppCat').value;
-  const marque  = document.getElementById('oppMarque').value;
+  const marque  = document.getElementById('oppMarque') ? document.getElementById('oppMarque').value : '';
   const tri     = document.getElementById('oppTri').value;
   const budget  = document.getElementById('oppBudget').value;
   const prixMin = document.getElementById('oppPrixMin').value;
@@ -886,90 +899,90 @@ setInterval(function() {
       <div style="font-size:16px;font-weight:600">Opportunités en direct</div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:11px;color:var(--text2)" id="oppCount">—</span>
-        <button onclick="resetOppFiltres()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer">Reset filtres</button>
+        <button onclick="resetOppFiltres()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer">Reset</button>
       </div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Catégorie</div>
-        <select id="oppCat" onchange="loadOpps()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-          <option value="">Toutes</option>
-          <option value="Vêtements femme">Vêtements femme</option>
-          <option value="Vêtements homme">Vêtements homme</option>
-          <option value="Chaussures femme">Chaussures femme</option>
-          <option value="Chaussures homme">Chaussures homme</option>
-          <option value="Sacs">Sacs</option>
-          <option value="Accessoires">Accessoires</option>
-          <option value="Sport">Sport</option>
-          <option value="Électronique">Électronique</option>
-          <option value="Maison">Maison</option>
-          <option value="Jeux vidéo">Jeux vidéo</option>
-          <option value="Livres">Livres</option>
-          <option value="Enfants">Enfants</option>
-        </select>
-      </div>
+      <select id="oppCat" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="">Toutes catégories</option>
+        <option value="Vêtements femme">Vêtements femme</option>
+        <option value="Vêtements homme">Vêtements homme</option>
+        <option value="Chaussures femme">Chaussures femme</option>
+        <option value="Chaussures homme">Chaussures homme</option>
+        <option value="Sacs">Sacs</option>
+        <option value="Accessoires">Accessoires</option>
+        <option value="Sport">Sport</option>
+        <option value="Électronique">Électronique</option>
+        <option value="Maison">Maison</option>
+        <option value="Jeux vidéo">Jeux vidéo</option>
+        <option value="Livres">Livres</option>
+        <option value="Enfants">Enfants</option>
+      </select>
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Marque</div>
-        <input type="text" id="oppMarque" placeholder="Ex: Nike, Apple..." onkeyup="debounceOpps()"
-          style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-      </div>
+      <select id="oppMarque" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="">Toutes marques</option>
+        <option>Nike</option><option>Adidas</option><option>Jordan</option>
+        <option>New Balance</option><option>Puma</option><option>Reebok</option>
+        <option>Converse</option><option>Vans</option><option>Salomon</option>
+        <option>The North Face</option><option>Patagonia</option><option>Arc'teryx</option>
+        <option>Levi's</option><option>Zara</option><option>H&M</option>
+        <option>Mango</option><option>Bershka</option><option>Pull&Bear</option>
+        <option>Ralph Lauren</option><option>Tommy Hilfiger</option><option>Lacoste</option>
+        <option>Stone Island</option><option>Palace</option><option>Supreme</option>
+        <option>Off-White</option><option>Stüssy</option><option>Carhartt</option>
+        <option>Apple</option><option>Samsung</option><option>Sony</option>
+        <option>Nintendo</option><option>PlayStation</option><option>Xbox</option>
+        <option>Louis Vuitton</option><option>Gucci</option><option>Prada</option>
+        <option>Balenciaga</option><option>Dior</option><option>Chanel</option>
+      </select>
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">État</div>
-        <select id="oppEtat" onchange="loadOpps()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-          <option value="">Tous</option>
-          <option value="neuf">Neuf avec étiquette</option>
-          <option value="neuf_sans">Neuf sans étiquette</option>
-          <option value="tres_bon">Très bon état</option>
-          <option value="bon">Bon état</option>
-          <option value="satisfaisant">Satisfaisant</option>
-        </select>
-      </div>
+      <select id="oppEtat" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="">Tous états</option>
+        <option value="neuf">Neuf avec étiquette</option>
+        <option value="neuf_sans">Neuf sans étiquette</option>
+        <option value="tres_bon">Très bon état</option>
+        <option value="bon">Bon état</option>
+        <option value="satisfaisant">Satisfaisant</option>
+      </select>
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Taille</div>
-        <select id="oppTaille" onchange="loadOpps()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-          <option value="">Toutes</option>
-          <option value="XS">XS</option>
-          <option value="S">S</option>
-          <option value="M">M</option>
-          <option value="L">L</option>
-          <option value="XL">XL</option>
-          <option value="XXL">XXL</option>
-          <option value="36">36</option>
-          <option value="37">37</option>
-          <option value="38">38</option>
-          <option value="39">39</option>
-          <option value="40">40</option>
-          <option value="41">41</option>
-          <option value="42">42</option>
-          <option value="43">43</option>
-          <option value="44">44</option>
-          <option value="45">45</option>
-        </select>
-      </div>
+      <select id="oppTaille" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="">Toutes tailles</option>
+        <optgroup label="Vêtements">
+          <option>XS</option><option>S</option><option>M</option>
+          <option>L</option><option>XL</option><option>XXL</option><option>XXXL</option>
+        </optgroup>
+        <optgroup label="Chaussures">
+          <option>35</option><option>36</option><option>37</option><option>38</option>
+          <option>39</option><option>40</option><option>41</option><option>42</option>
+          <option>43</option><option>44</option><option>45</option><option>46</option>
+        </optgroup>
+        <optgroup label="Jeans (tour de taille)">
+          <option>28</option><option>29</option><option>30</option><option>31</option>
+          <option>32</option><option>33</option><option>34</option><option>36</option>
+        </optgroup>
+      </select>
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Prix min — max (€)</div>
-        <div style="display:flex;gap:6px">
-          <input type="number" id="oppPrixMin" placeholder="Min" onchange="loadOpps()"
-            style="width:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-          <input type="number" id="oppBudget" placeholder="Max" onchange="loadOpps()"
-            style="width:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-        </div>
-      </div>
+      <select id="oppPrixRange" onchange="applyPrixRange()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="">Tous les prix</option>
+        <option value="0,10">Moins de 10€</option>
+        <option value="0,20">Moins de 20€</option>
+        <option value="0,50">Moins de 50€</option>
+        <option value="10,30">10€ — 30€</option>
+        <option value="20,50">20€ — 50€</option>
+        <option value="50,100">50€ — 100€</option>
+        <option value="100,500">Plus de 100€</option>
+      </select>
 
-      <div>
-        <div style="font-size:10px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Trier par</div>
-        <select id="oppTri" onchange="loadOpps()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px;">
-          <option value="nouveaute">Plus récents</option>
-          <option value="economie">Meilleure économie</option>
-          <option value="favoris">Plus de favoris</option>
-          <option value="prix_asc">Prix croissant</option>
-        </select>
-      </div>
+      <input type="hidden" id="oppPrixMin" value="">
+      <input type="hidden" id="oppBudget" value="">
+
+      <select id="oppTri" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:20px;font-size:12px;cursor:pointer">
+        <option value="nouveaute">Plus récents</option>
+        <option value="economie">Meilleure affaire</option>
+        <option value="favoris">Plus populaires</option>
+        <option value="prix_asc">Prix croissant</option>
+      </select>
 
     </div>
   </div>
