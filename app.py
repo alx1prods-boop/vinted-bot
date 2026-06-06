@@ -400,7 +400,7 @@ a.voir:hover{text-decoration:underline}
       <button class="nav-btn" onclick="showPage('niches',this)">Niches</button>
       <button class="nav-btn" onclick="showPage('marques',this)">Marques</button>
       <button class="nav-btn" onclick="showPage('alertes',this)">Alertes</button>
-      <button class="nav-btn" onclick="showPage('opportunites',this)">Opportunités</button>
+      <button class="nav-btn" id="btnOpportunites" onclick="showPage('opportunites',this)">Opportunités</button>
     </div>
   </div>
 </div>
@@ -724,21 +724,75 @@ async function refresh() {
   }
 }
 
+
+async function loadOpps() {
+  const cat    = document.getElementById('oppCat').value;
+  const tri    = document.getElementById('oppTri').value;
+  const budget = document.getElementById('oppBudget').value;
+  let url = '/api/opportunites?tri=' + tri;
+  if (cat)    url += '&categorie=' + encodeURIComponent(cat);
+  if (budget) url += '&budget=' + budget;
+  try {
+    const d = await fetch(url).then(r => r.json());
+    const opps = d.opportunites || [];
+    document.getElementById('oppCount').textContent = opps.length + ' articles';
+    const feed = document.getElementById('oppFeed');
+    if (!opps.length) {
+      feed.innerHTML = '<div class="empty" style="padding:20px 0">Aucun article dans les 6 dernières heures. Reviens dans quelques minutes.</div>';
+      return;
+    }
+    feed.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">' + opps.map(o => {
+      const hasEco = o.economie_pct > 5 && o.prix_moy > 0;
+      const isNew  = o.fraicheur === 'nouveau';
+      const ecoCol = o.economie_pct > 25 ? '#ff4d6d' : o.economie_pct > 10 ? '#ffd166' : '#00d68f';
+      const img    = o.photo_url ? `<img src="${o.photo_url}" style="width:100%;height:180px;object-fit:cover;border-radius:8px 8px 0 0;display:block" loading="lazy" onerror="this.style.display='none'">` : '';
+      const placeholder = o.photo_url ? '' : `<div style="width:100%;height:180px;background:var(--surface2);border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:11px">${o.categorie}</div>`;
+      return `<div style="background:var(--surface);border:1px solid ${isNew ? 'rgba(0,214,143,.4)' : 'var(--border)'};border-radius:10px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="position:relative">
+          ${img}${placeholder}
+          ${isNew ? '<span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;background:#00d68f;color:#000;padding:2px 7px;border-radius:20px">NOUVEAU</span>' : ''}
+          ${hasEco ? `<span style="position:absolute;top:8px;right:8px;font-size:11px;font-weight:700;background:${ecoCol};color:#000;padding:2px 8px;border-radius:20px">-${o.economie_pct}%</span>` : ''}
+        </div>
+        <div style="padding:10px;flex:1;display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:10px;color:var(--text2)">${o.categorie} · ${o.fraicheur}</div>
+          <div style="font-size:13px;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${o.titre}</div>
+          ${o.marque !== '—' ? `<div style="font-size:11px;font-weight:600;color:var(--accent)">${o.marque}</div>` : ''}
+          <div style="display:flex;align-items:baseline;gap:6px;margin-top:2px">
+            <span style="font-size:16px;font-weight:700">${o.prix}€</span>
+            ${hasEco ? `<span style="font-size:11px;color:var(--text2);text-decoration:line-through">${o.prix_moy}€</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris}</div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <a href="${o.url}" target="_blank" style="flex:1;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px 0;border-radius:7px;text-decoration:none;text-align:center">Acheter</a>
+          </div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) { console.error('loadOpps error:', e); }
+}
+
+function fillOppCats(categories) {
+  const sel = document.getElementById('oppCat');
+  if (sel && sel.options.length <= 1 && categories) {
+    categories.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.cat; o.textContent = c.cat;
+      sel.appendChild(o);
+    });
+  }
+}
+
 refresh();
 setInterval(refresh, 20000);
 // Load opps on tab click and auto-refresh
 // Opportunités : chargement au clic et auto-refresh
-function initOppTab() {
-  var btn = document.querySelector('[onclick*=opportunites]');
-  if (btn) {
-    btn.addEventListener('click', function() { setTimeout(loadOpps, 100); });
-  }
-  setInterval(function() {
-    var p = document.getElementById('page-opportunites');
-    if (p && p.classList.contains('active')) loadOpps();
-  }, 30000);
-}
-initOppTab();
+document.getElementById('btnOpportunites').addEventListener('click', function() {
+  setTimeout(function(){ loadOpps(); }, 150);
+});
+setInterval(function() {
+  var p = document.getElementById('page-opportunites');
+  if (p && p.classList.contains('active')) { loadOpps(); }
+}, 30000);
 </script>
 <!-- PAGE OPPORTUNITÉS -->
 <div class="page" id="page-opportunites">
