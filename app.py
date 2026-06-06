@@ -727,10 +727,18 @@ async function refresh() {
 refresh();
 setInterval(refresh, 20000);
 // Load opps on tab click and auto-refresh
-document.querySelector('[onclick*=opportunites]').addEventListener('click', () => { loadOpps(); });
-setInterval(() => {
-  if (document.getElementById('page-opportunites').classList.contains('active')) loadOpps();
-}, 30000);
+// Opportunités : chargement au clic et auto-refresh
+function initOppTab() {
+  var btn = document.querySelector('[onclick*=opportunites]');
+  if (btn) {
+    btn.addEventListener('click', function() { setTimeout(loadOpps, 100); });
+  }
+  setInterval(function() {
+    var p = document.getElementById('page-opportunites');
+    if (p && p.classList.contains('active')) loadOpps();
+  }, 30000);
+}
+initOppTab();
 </script>
 <!-- PAGE OPPORTUNITÉS -->
 <div class="page" id="page-opportunites">
