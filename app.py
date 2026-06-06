@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template_string
 
 app = Flask(__name__)
-DB = "vinted.db"
+DB = os.path.join("/tmp", "vinted.db")
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
