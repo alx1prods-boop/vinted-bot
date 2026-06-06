@@ -725,13 +725,30 @@ async function refresh() {
 }
 
 
+let _oppDebounce = null;
+function debounceOpps() {
+  clearTimeout(_oppDebounce);
+  _oppDebounce = setTimeout(loadOpps, 500);
+}
+function resetOppFiltres() {
+  document.getElementById('oppCat').value = '';
+  document.getElementById('oppMarque').value = '';
+  document.getElementById('oppPrixMin').value = '';
+  document.getElementById('oppBudget').value = '';
+  document.getElementById('oppTri').value = 'nouveaute';
+  loadOpps();
+}
 async function loadOpps() {
-  const cat    = document.getElementById('oppCat').value;
-  const tri    = document.getElementById('oppTri').value;
-  const budget = document.getElementById('oppBudget').value;
+  const cat     = document.getElementById('oppCat').value;
+  const marque  = document.getElementById('oppMarque').value;
+  const tri     = document.getElementById('oppTri').value;
+  const budget  = document.getElementById('oppBudget').value;
+  const prixMin = document.getElementById('oppPrixMin').value;
   let url = '/api/opportunites?tri=' + tri;
-  if (cat)    url += '&categorie=' + encodeURIComponent(cat);
-  if (budget) url += '&budget=' + budget;
+  if (cat)     url += '&categorie=' + encodeURIComponent(cat);
+  if (budget)  url += '&budget=' + budget;
+  if (prixMin) url += '&prix_min=' + prixMin;
+  if (marque)  url += '&marque=' + encodeURIComponent(marque);
   try {
     const d = await fetch(url).then(r => r.json());
     const opps = d.opportunites || [];
@@ -796,21 +813,37 @@ setInterval(function() {
 </script>
 <!-- PAGE OPPORTUNITÉS -->
 <div class="page" id="page-opportunites">
-  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-    <div style="font-size:16px;font-weight:600;flex:1">Opportunités en direct</div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="font-size:16px;font-weight:600;flex:1;min-width:120px">Opportunités en direct</div>
     <select id="oppCat" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;">
       <option value="">Toutes catégories</option>
+      <option value="Vêtements femme">Vêtements femme</option>
+      <option value="Vêtements homme">Vêtements homme</option>
+      <option value="Chaussures femme">Chaussures femme</option>
+      <option value="Chaussures homme">Chaussures homme</option>
+      <option value="Sacs">Sacs</option>
+      <option value="Accessoires">Accessoires</option>
+      <option value="Sport">Sport</option>
+      <option value="Électronique">Électronique</option>
+      <option value="Maison">Maison</option>
+      <option value="Jeux vidéo">Jeux vidéo</option>
+      <option value="Livres">Livres</option>
+      <option value="Enfants">Enfants</option>
     </select>
+    <input type="text" id="oppMarque" placeholder="Marque (ex: Nike)" onchange="loadOpps()" onkeyup="debounceOpps()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;width:140px">
+    <input type="number" id="oppPrixMin" placeholder="Prix min €" onchange="loadOpps()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;width:100px">
+    <input type="number" id="oppBudget" placeholder="Prix max €" onchange="loadOpps()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;width:100px">
     <select id="oppTri" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;">
       <option value="nouveaute">Plus récents</option>
       <option value="economie">Meilleure économie</option>
       <option value="favoris">Plus de favoris</option>
       <option value="prix_asc">Prix croissant</option>
     </select>
-    <input type="number" id="oppBudget" placeholder="Budget max €" onchange="loadOpps()"
-      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;width:130px">
+    <button onclick="resetOppFiltres()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:7px;font-size:12px;cursor:pointer">Reset</button>
     <span style="font-size:11px;color:var(--text2)" id="oppCount">—</span>
-    <span style="font-size:11px;color:var(--text2)">· rafraîchit toutes les 30s</span>
   </div>
   <div id="oppFeed"><div class="empty" style="padding:20px 0">En attente des données...</div></div>
 </div>
@@ -898,9 +931,15 @@ def api_opportunites():
         if budget:
             where += " AND a.prix <= ?"
             params.append(float(budget))
+        if prix_min:
+            where += " AND a.prix >= ?"
+            params.append(float(prix_min))
         if categorie:
             where += " AND a.categorie = ?"
             params.append(categorie)
+        if marque:
+            where += " AND LOWER(a.marque) LIKE LOWER(?)"
+            params.append(f"%{marque}%")
 
         rows = c.execute(f"""
             SELECT a.id, a.titre, a.marque, a.prix, a.categorie,
