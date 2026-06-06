@@ -1042,10 +1042,14 @@ def api_full():
 @app.route("/api/opportunites")
 def api_opportunites():
     from flask import request as freq
-    budget    = freq.args.get("budget", "")
-    categorie = freq.args.get("categorie", "")
-    tri       = freq.args.get("tri", "nouveaute")
     try:
+        budget    = freq.args.get("budget", "").strip()
+        prix_min  = freq.args.get("prix_min", "").strip()
+        categorie = freq.args.get("categorie", "").strip()
+        marque    = freq.args.get("marque", "").strip()
+        etat      = freq.args.get("etat", "").strip()
+        taille    = freq.args.get("taille", "").strip()
+        tri       = freq.args.get("tri", "nouveaute").strip()
         c = sqlite3.connect(DB)
         prix_moyens_r = c.execute("""
             SELECT marque, categorie, ROUND(AVG(prix),2), COUNT(*)
