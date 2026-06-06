@@ -1,4 +1,5 @@
 import os, time, sqlite3, requests, threading, json, random
+import concurrent.futures
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template_string
 from collections import defaultdict
@@ -63,6 +64,30 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 ]
 
+# Chargement des proxies depuis l'env
+def load_proxies():
+    raw = os.environ.get("PROXY_LIST", "")
+    proxies = []
+    for p in raw.split(","):
+        parts = p.strip().split(":")
+        if len(parts) == 4:
+            host, port, user, pwd = parts
+            proxies.append(f"http://{user}:{pwd}@{host}:{port}")
+    return proxies
+
+PROXIES = load_proxies()
+_proxy_idx = 0
+_proxy_lock = threading.Lock()
+
+def get_proxy():
+    global _proxy_idx
+    if not PROXIES:
+        return None
+    with _proxy_lock:
+        p = PROXIES[_proxy_idx % len(PROXIES)]
+        _proxy_idx += 1
+    return {"http": p, "https": p}
+
 def get_session():
     s = requests.Session()
     s.headers.update({
@@ -72,6 +97,9 @@ def get_session():
         "Origin": "https://www.vinted.fr",
         "Referer": "https://www.vinted.fr/",
     })
+    proxy = get_proxy()
+    if proxy:
+        s.proxies.update(proxy)
     try:
         s.get("https://www.vinted.fr", timeout=10)
     except:
@@ -340,7 +368,7 @@ def scanner():
         except:
             pass
 
-        time.sleep(10)
+        time.sleep(2)
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 HTML = r"""<!DOCTYPE html><html lang="fr"><head>
