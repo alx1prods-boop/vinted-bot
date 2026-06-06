@@ -387,6 +387,7 @@ a.voir:hover{text-decoration:underline}
       <button class="nav-btn" onclick="showPage('niches',this)">Niches</button>
       <button class="nav-btn" onclick="showPage('marques',this)">Marques</button>
       <button class="nav-btn" onclick="showPage('alertes',this)">Alertes</button>
+      <button class="nav-btn" onclick="showPage('opportunites',this)">Opportunités</button>
     </div>
   </div>
 </div>
@@ -694,6 +695,7 @@ async function refresh() {
     renderMarques(d.marques);
     renderKwCloud(d.mots_cles);
     renderAlertesFull(d.alertes_recentes);
+    fillOppCats(d.categories);
     renderCharts(d.tendances, d.categories);
 
     // Filtre catégories
@@ -711,7 +713,33 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 20000);
-</script></body></html>"""
+// Load opps on tab click and auto-refresh
+document.querySelector('[onclick*=opportunites]').addEventListener('click', () => { loadOpps(); });
+setInterval(() => {
+  if (document.getElementById('page-opportunites').classList.contains('active')) loadOpps();
+}, 30000);
+</script>
+<!-- PAGE OPPORTUNITÉS -->
+<div class="page" id="page-opportunites">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="font-size:16px;font-weight:600;flex:1">Opportunités en direct</div>
+    <select id="oppCat" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;">
+      <option value="">Toutes catégories</option>
+    </select>
+    <select id="oppTri" onchange="loadOpps()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;">
+      <option value="nouveaute">Plus récents</option>
+      <option value="economie">Meilleure économie</option>
+      <option value="favoris">Plus de favoris</option>
+      <option value="prix_asc">Prix croissant</option>
+    </select>
+    <input type="number" id="oppBudget" placeholder="Budget max €" onchange="loadOpps()"
+      style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;font-size:12px;width:130px">
+    <span style="font-size:11px;color:var(--text2)" id="oppCount">—</span>
+    <span style="font-size:11px;color:var(--text2)">· rafraîchit toutes les 30s</span>
+  </div>
+  <div id="oppFeed"><div class="empty" style="padding:20px 0">En attente des données...</div></div>
+</div>
+</body></html>"""
 
 # ── API ───────────────────────────────────────────────────────────────────────
 @app.route("/")
@@ -771,6 +799,73 @@ def api_full():
             "alertes_recentes": [{"titre":r[0],"marque":r[1],"prix":r[2],"prix_moyen_niche":r[3],
                                   "economie_pct":r[4],"categorie":r[5],"url":r[6],"date":r[7]} for r in alertes_r],
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/opportunites")
+def api_opportunites():
+    from flask import request as freq
+    budget    = freq.args.get("budget", "")
+    categorie = freq.args.get("categorie", "")
+    tri       = freq.args.get("tri", "nouveaute")
+    try:
+        c = sqlite3.connect(DB)
+        prix_moyens_r = c.execute("""
+            SELECT marque, categorie, ROUND(AVG(prix),2), COUNT(*)
+            FROM articles WHERE marque != '' AND prix > 1
+            GROUP BY marque, categorie HAVING COUNT(*) >= 2
+        """).fetchall()
+        prix_moyens = {f"{r[0]}_{r[1]}": {"moy": r[2], "nb": r[3]} for r in prix_moyens_r}
+
+        where = "WHERE a.prix > 1 AND a.date_scraping >= datetime('now','-6 hours')"
+        params = []
+        if budget:
+            where += " AND a.prix <= ?"
+            params.append(float(budget))
+        if categorie:
+            where += " AND a.categorie = ?"
+            params.append(categorie)
+
+        rows = c.execute(f"""
+            SELECT a.id, a.titre, a.marque, a.prix, a.categorie,
+                   a.nb_favoris, a.nb_vues, a.url, a.date_scraping
+            FROM articles a {where}
+            ORDER BY a.date_scraping DESC LIMIT 200
+        """, params).fetchall()
+        c.close()
+
+        opportunites = []
+        for r in rows:
+            iid, titre, marque, prix, cat, fav, vues, url, date_scrap = r
+            cle = f"{marque}_{cat}"
+            niche = prix_moyens.get(cle, {})
+            prix_moy = niche.get("moy", 0)
+            economie_pct = round((1 - prix / prix_moy) * 100) if prix_moy else 0
+            economie_eur = round(prix_moy - prix, 2) if prix_moy else 0
+            score_opp = round((fav or 0) * 2 + max(economie_pct, 0) * 0.5, 1)
+            try:
+                dt = datetime.fromisoformat(date_scrap)
+                mins = int((datetime.now() - dt).total_seconds() / 60)
+                fraicheur = "nouveau" if mins < 10 else (f"il y a {mins}min" if mins < 60 else f"il y a {mins//60}h")
+            except:
+                fraicheur = "recent"
+            opportunites.append({
+                "id": iid, "titre": titre, "marque": marque or "—",
+                "prix": prix, "prix_moy": prix_moy, "categorie": cat,
+                "nb_favoris": fav or 0, "economie_pct": economie_pct,
+                "economie_eur": economie_eur, "nb_niche": niche.get("nb",0),
+                "score_opp": score_opp, "fraicheur": fraicheur, "url": url,
+            })
+
+        if tri == "economie":
+            opportunites.sort(key=lambda x: x["economie_pct"], reverse=True)
+        elif tri == "favoris":
+            opportunites.sort(key=lambda x: x["nb_favoris"], reverse=True)
+        elif tri == "prix_asc":
+            opportunites.sort(key=lambda x: x["prix"])
+
+        return jsonify({"opportunites": opportunites[:80]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
