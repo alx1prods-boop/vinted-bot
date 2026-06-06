@@ -1,4 +1,4 @@
-import os, time, sqlite3, requests, threading, json
+import os, time, sqlite3, requests, threading, json, random
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template_string
 from collections import defaultdict
@@ -54,10 +54,19 @@ def init_db():
     c.close()
 
 # ── SESSION ──────────────────────────────────────────────────────────────────
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+]
+
 def get_session():
     s = requests.Session()
     s.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": random.choice(USER_AGENTS),
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "fr-FR,fr;q=0.9",
         "Origin": "https://www.vinted.fr",
@@ -331,7 +340,7 @@ def scanner():
         except:
             pass
 
-        time.sleep(45)
+        time.sleep(10)
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 HTML = r"""<!DOCTYPE html><html lang="fr"><head>
@@ -395,6 +404,7 @@ a.voir:hover{text-decoration:underline}
   <div class="logo">Vinted<em>Bot</em> <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px;">Market Analysis</span></div>
   <div class="header-right">
     <div style="display:flex;align-items:center;gap:6px"><div class="dot-live" id="liveDot" style="background:var(--border)"></div><span class="status-text" id="statusText">Connexion...</span></div>
+    <button id="notifBtn" onclick="toggleNotifs()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:7px;font-size:11px;cursor:pointer">🔔 Activer alertes</button>
     <div class="nav">
       <button class="nav-btn active" onclick="showPage('dashboard',this)">Vue générale</button>
       <button class="nav-btn" onclick="showPage('niches',this)">Niches</button>
@@ -804,6 +814,58 @@ function fillOppCats(categories) {
     });
   }
 }
+
+// ── NOTIFICATIONS PUSH ───────────────────────────────────────────────────────
+let notifEnabled = false;
+let lastNotifIds = new Set();
+
+function toggleNotifs() {
+  if (!("Notification" in window)) {
+    alert("Ton navigateur ne supporte pas les notifications.");
+    return;
+  }
+  if (Notification.permission === "granted") {
+    notifEnabled = !notifEnabled;
+    document.getElementById('notifBtn').textContent = notifEnabled ? '🔔 Alertes ON' : '🔔 Alertes OFF';
+    document.getElementById('notifBtn').style.color = notifEnabled ? 'var(--green)' : 'var(--text2)';
+    document.getElementById('notifBtn').style.borderColor = notifEnabled ? 'var(--green)' : 'var(--border)';
+  } else {
+    Notification.requestPermission().then(perm => {
+      if (perm === "granted") {
+        notifEnabled = true;
+        document.getElementById('notifBtn').textContent = '🔔 Alertes ON';
+        document.getElementById('notifBtn').style.color = 'var(--green)';
+        document.getElementById('notifBtn').style.borderColor = 'var(--green)';
+      }
+    });
+  }
+}
+
+function checkNewOpps(opps) {
+  if (!notifEnabled || !opps || !opps.length) return;
+  opps.forEach(o => {
+    if (!lastNotifIds.has(o.id) && o.fraicheur === 'nouveau') {
+      lastNotifIds.add(o.id);
+      const eco = o.economie_pct > 0 ? ` (-${o.economie_pct}%)` : '';
+      const n = new Notification(`🔥 ${o.marque} — ${o.prix}€${eco}`, {
+        body: o.titre + '\n' + o.categorie,
+        icon: '/favicon.ico',
+        tag: o.id,
+      });
+      n.onclick = () => { window.open(o.url, '_blank'); n.close(); };
+      setTimeout(() => n.close(), 8000);
+    }
+  });
+}
+
+// Scanner les nouvelles opps toutes les 10s pour les notifs
+setInterval(async () => {
+  if (!notifEnabled) return;
+  try {
+    const d = await fetch('/api/opportunites?tri=nouveaute').then(r => r.json());
+    checkNewOpps(d.opportunites || []);
+  } catch(e) {}
+}, 10000);
 
 refresh();
 setInterval(refresh, 20000);
