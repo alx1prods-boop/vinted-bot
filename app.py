@@ -36,7 +36,13 @@ def init_db():
         categorie TEXT, taille TEXT,
         nb_favoris INTEGER, nb_vues INTEGER,
         date_publication TEXT, date_scraping TEXT,
-        url TEXT, vendu INTEGER DEFAULT 0)""")
+        url TEXT, vendu INTEGER DEFAULT 0,
+        photo_url TEXT DEFAULT '')""")
+    # Ajoute la colonne si elle n'existe pas encore
+    try:
+        c.execute("ALTER TABLE articles ADD COLUMN photo_url TEXT DEFAULT ''")
+    except:
+        pass
     c.execute("""CREATE TABLE IF NOT EXISTS alertes_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         titre TEXT, marque TEXT, prix REAL, prix_moyen_niche REAL,
@@ -225,6 +231,12 @@ def scraper_categorie(session, cat, ids_vus, prix_moyens):
             continue
         marque = item.get("brand_title", "") or item.get("brand", "")
         prix   = float(item.get("price", {}).get("amount", 0) if isinstance(item.get("price"), dict) else item.get("price", 0))
+        # Récupère la photo principale
+        photos = item.get("photos", [])
+        photo_url = ""
+        if photos:
+            photo_url = photos[0].get("url", "") or photos[0].get("full_size_url", "") or photos[0].get("thumbnails", [{}])[-1].get("url", "") if photos[0].get("thumbnails") else ""
+
         art = {
             "id":               iid,
             "titre":            item.get("title", ""),
@@ -237,14 +249,15 @@ def scraper_categorie(session, cat, ids_vus, prix_moyens):
             "date_publication": item.get("created_at_ts", ""),
             "date_scraping":    datetime.now().isoformat(),
             "url":              f"https://www.vinted.fr/items/{iid}",
+            "photo_url":        photo_url,
         }
         try:
             c.execute("""INSERT OR IGNORE INTO articles
-                (id,titre,marque,prix,categorie,taille,nb_favoris,nb_vues,date_publication,date_scraping,url,vendu)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,0)""",
+                (id,titre,marque,prix,categorie,taille,nb_favoris,nb_vues,date_publication,date_scraping,url,vendu,photo_url)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)""",
                 (art["id"],art["titre"],art["marque"],art["prix"],art["categorie"],
                  art["taille"],art["nb_favoris"],art["nb_vues"],art["date_publication"],
-                 art["date_scraping"],art["url"]))
+                 art["date_scraping"],art["url"],art.get("photo_url","")))
             if c.total_changes > len(nouveaux):
                 nouveaux.append(art)
                 ids_vus.add(iid)
@@ -318,7 +331,7 @@ def scanner():
         except:
             pass
 
-        time.sleep(120)
+        time.sleep(45)
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 HTML = r"""<!DOCTYPE html><html lang="fr"><head>
@@ -829,7 +842,7 @@ def api_opportunites():
 
         rows = c.execute(f"""
             SELECT a.id, a.titre, a.marque, a.prix, a.categorie,
-                   a.nb_favoris, a.nb_vues, a.url, a.date_scraping
+                   a.nb_favoris, a.nb_vues, a.url, a.date_scraping, a.photo_url
             FROM articles a {where}
             ORDER BY a.date_scraping DESC LIMIT 200
         """, params).fetchall()
@@ -837,7 +850,7 @@ def api_opportunites():
 
         opportunites = []
         for r in rows:
-            iid, titre, marque, prix, cat, fav, vues, url, date_scrap = r
+            iid, titre, marque, prix, cat, fav, vues, url, date_scrap, photo_url = r
             cle = f"{marque}_{cat}"
             niche = prix_moyens.get(cle, {})
             prix_moy = niche.get("moy", 0)
@@ -856,6 +869,7 @@ def api_opportunites():
                 "nb_favoris": fav or 0, "economie_pct": economie_pct,
                 "economie_eur": economie_eur, "nb_niche": niche.get("nb",0),
                 "score_opp": score_opp, "fraicheur": fraicheur, "url": url,
+                "photo_url": photo_url or "",
             })
 
         if tri == "economie":
