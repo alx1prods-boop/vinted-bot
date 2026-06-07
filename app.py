@@ -209,7 +209,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .card-prix{font-size:16px;font-weight:700}
 .card-taille{font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:20px}
 .card-fav{font-size:11px;color:var(--text2)}
-.card-btn{display:block;margin:8px 10px 10px;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px;border-radius:8px;text-decoration:none;text-align:center;transition:opacity .15s}
+.card-btn{display:block;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px;border-radius:8px;text-decoration:none;text-align:center;transition:opacity .15s}
 .card-btn:hover{opacity:.85}
 
 /* EMPTY */
@@ -350,7 +350,10 @@ function makeCard(o, isNew) {
       </div>
       ${o.nb_favoris ? `<div class="card-fav">❤️ ${o.nb_favoris}</div>` : ''}
     </div>
-    <a class="card-btn" href="${o.url}" target="_blank">Voir sur Vinted →</a>`;
+    <div style="display:flex;gap:6px;margin:0 10px 10px">
+      <a class="card-btn" href="${o.url}/buy" target="_blank" style="flex:2;background:var(--accent)">💳 Acheter</a>
+      <a class="card-btn" href="${o.url}" target="_blank" style="flex:1;background:var(--surface2);color:var(--text2)">👁</a>
+    </div>`;
 
   // Retirer le badge NOUVEAU après 30s
   if (isNew) {
@@ -364,10 +367,29 @@ function makeCard(o, isNew) {
   return card;
 }
 
+// File d'attente pour affichage 1 par 1
+const cardQueue = [];
+let isProcessing = false;
+
+function processQueue() {
+  if (isProcessing || cardQueue.length === 0) return;
+  isProcessing = true;
+  const {o, isNew} = cardQueue.shift();
+  _addCardNow(o, isNew);
+  setTimeout(() => {
+    isProcessing = false;
+    processQueue();
+  }, 180); // 180ms entre chaque carte
+}
+
 function addCard(o, isNew) {
   if (!matchFilters(o)) return;
+  cardQueue.push({o, isNew});
+  processQueue();
+}
+
+function _addCardNow(o, isNew) {
   const feed = document.getElementById('feed');
-  // Retirer le message empty si présent
   const empty = feed.querySelector('.empty');
   if (empty) feed.innerHTML = '';
 
@@ -386,8 +408,8 @@ function addCard(o, isNew) {
     setTimeout(() => n.close(), 6000);
   }
 
-  // Limiter à 200 cartes
-  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
+  // Limiter à 300 cartes
+  while (feed.children.length > 300) feed.removeChild(feed.lastChild);
 }
 
 // ── SSE ──────────────────────────────────────────────────────────────────────
