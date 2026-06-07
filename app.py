@@ -442,32 +442,30 @@ function showCard(o) {
     : '';
   const phHtml = '<div class="card-ph" id="ph_'+o.id+'" style="'+(o.photo_url?'display:none':'')+'">🏷️</div>';
 
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML =
-    '<div class="card-img-wrap">' +
-      imgHtml + phHtml +
-      (isNew ? '<span class="badge-new">NOUVEAU</span>' : '') +
-      '<span class="badge-cat">'+(o.categorie||'')+'</span>' +
-    '</div>' +
-    '<div class="card-body">' +
-      '<div class="card-row1">' +
-        '<div class="card-titre">'+(o.titre||'')+'</div>' +
-        '<div class="card-prix">'+o.prix+'€</div>' +
+  stage.innerHTML =
+    '<div class="card">' +
+      '<div class="card-img-wrap">' +
+        imgHtml + phHtml +
+        (isNew ? '<span class="badge-new">NOUVEAU</span>' : '') +
+        '<span class="badge-cat">'+(o.categorie||'')+'</span>' +
       '</div>' +
-      '<div class="card-pills">' +
-        (o.marque ? '<span class="pill marque">'+o.marque+'</span>' : '') +
-        (o.taille ? '<span class="pill">'+o.taille+'</span>' : '') +
-      '</div>' +
-      (o.nb_favoris ? '<div class="card-fav">❤️ '+o.nb_favoris+' favoris</div>' : '') +
-      '<div class="card-actions">' +
-        '<a class="btn-buy" href="'+o.url+'" target="_blank">💳 Acheter</a>' +
-        '<a class="btn-see" href="'+o.url+'" target="_blank">👁 Voir</a>' +
-        '<button class="btn-skip" onclick="skipCard()">⏭</button>' +
+      '<div class="card-body">' +
+        '<div class="card-row1">' +
+          '<div class="card-titre">'+(o.titre||'')+'</div>' +
+          '<div class="card-prix">'+o.prix+'€</div>' +
+        '</div>' +
+        '<div class="card-pills">' +
+          (o.marque ? '<span class="pill marque">'+o.marque+'</span>' : '') +
+          (o.taille ? '<span class="pill">'+o.taille+'</span>' : '') +
+        '</div>' +
+        (o.nb_favoris ? '<div class="card-fav">❤️ '+o.nb_favoris+' favoris</div>' : '') +
+        '<div class="card-actions">' +
+          '<a class="btn-buy" href="'+o.url+'" target="_blank">💳 Acheter</a>' +
+          '<a class="btn-see" href="'+o.url+'" target="_blank">👁 Voir</a>' +
+          '<button class="btn-skip" onclick="skipCard()">⏭</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
-
-  stage.appendChild(card);
   viewed++;
   document.getElementById('ctr').textContent = viewed + ' vus';
   startProgress();
