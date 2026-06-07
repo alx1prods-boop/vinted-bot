@@ -20,6 +20,48 @@ CATEGORIES = [
     {"nom": "Enfants",           "id": 1},
 ]
 
+# Cache marques et catégories Vinted
+_vinted_brands = []
+_vinted_cats = []
+_vinted_data_lock = threading.Lock()
+
+def load_vinted_data():
+    """Charge les vraies marques et catégories depuis l'API Vinted."""
+    global _vinted_brands, _vinted_cats
+    try:
+        s = requests.Session()
+        s.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Accept-Language": "fr-FR,fr;q=0.9",
+        })
+        s.get("https://www.vinted.fr", timeout=8)
+
+        # Catégories
+        r = s.get("https://www.vinted.fr/api/v2/catalogs", timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            cats = []
+            def extract_cats(items, prefix=""):
+                for item in items:
+                    title = item.get("title", "")
+                    full = (prefix + " > " + title) if prefix else title
+                    cats.append({"id": item.get("id"), "title": full, "short": title})
+                    if item.get("catalogs"):
+                        extract_cats(item["catalogs"], full)
+            extract_cats(data.get("catalogs", []))
+            with _vinted_data_lock:
+                _vinted_cats = cats[:80]
+
+        # Marques populaires
+        r2 = s.get("https://www.vinted.fr/api/v2/brands?page=1&per_page=200&sort=popularity", timeout=8)
+        if r2.status_code == 200:
+            brands = r2.json().get("brands", [])
+            with _vinted_data_lock:
+                _vinted_brands = [{"id": b.get("id"), "title": b.get("title", "")} for b in brands if b.get("title")]
+    except Exception as e:
+        pass
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
@@ -237,68 +279,20 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 
 <div class="filters" id="filtersBar">
   <div class="filter-pill" id="pillCat" onclick="toggleDD('ddCat',this,event)">
-    Catégorie
-    <div class="dd" id="ddCat">
-      <div class="dd-sep">Vêtements</div>
-      <label class="dd-item"><input type="checkbox" value="Vetements femme" onchange="onFilter()"> Femme</label>
-      <label class="dd-item"><input type="checkbox" value="Vetements homme" onchange="onFilter()"> Homme</label>
-      <div class="dd-sep">Chaussures</div>
-      <label class="dd-item"><input type="checkbox" value="Chaussures femme" onchange="onFilter()"> Femme</label>
-      <label class="dd-item"><input type="checkbox" value="Chaussures homme" onchange="onFilter()"> Homme</label>
-      <div class="dd-sep">Autres</div>
-      <label class="dd-item"><input type="checkbox" value="Sacs" onchange="onFilter()"> Sacs</label>
-      <label class="dd-item"><input type="checkbox" value="Accessoires" onchange="onFilter()"> Accessoires</label>
-      <label class="dd-item"><input type="checkbox" value="Sport" onchange="onFilter()"> Sport</label>
-      <label class="dd-item"><input type="checkbox" value="Electronique" onchange="onFilter()"> Électronique</label>
-      <label class="dd-item"><input type="checkbox" value="Maison" onchange="onFilter()"> Maison</label>
-      <label class="dd-item"><input type="checkbox" value="Jeux video" onchange="onFilter()"> Jeux vidéo</label>
-      <label class="dd-item"><input type="checkbox" value="Livres" onchange="onFilter()"> Livres</label>
-      <label class="dd-item"><input type="checkbox" value="Enfants" onchange="onFilter()"> Enfants</label>
-    </div>
+    Catégorie <span id="lblCat"></span>
+    <div class="dd" id="ddCat"><div style="padding:10px;font-size:12px;color:var(--t2)">Chargement...</div></div>
   </div>
 
   <div class="filter-pill" id="pillMarque" onclick="toggleDD('ddMarque',this,event)">
-    Marque
+    Marque <span id="lblMarque"></span>
     <div class="dd" id="ddMarque">
-      <div class="dd-sep">Sneakers</div>
-      <label class="dd-item"><input type="checkbox" value="Nike" onchange="onFilter()"> Nike</label>
-      <label class="dd-item"><input type="checkbox" value="Adidas" onchange="onFilter()"> Adidas</label>
-      <label class="dd-item"><input type="checkbox" value="Jordan" onchange="onFilter()"> Jordan</label>
-      <label class="dd-item"><input type="checkbox" value="New Balance" onchange="onFilter()"> New Balance</label>
-      <label class="dd-item"><input type="checkbox" value="Puma" onchange="onFilter()"> Puma</label>
-      <label class="dd-item"><input type="checkbox" value="Converse" onchange="onFilter()"> Converse</label>
-      <label class="dd-item"><input type="checkbox" value="Vans" onchange="onFilter()"> Vans</label>
-      <label class="dd-item"><input type="checkbox" value="Reebok" onchange="onFilter()"> Reebok</label>
-      <div class="dd-sep">Streetwear</div>
-      <label class="dd-item"><input type="checkbox" value="Supreme" onchange="onFilter()"> Supreme</label>
-      <label class="dd-item"><input type="checkbox" value="Carhartt" onchange="onFilter()"> Carhartt</label>
-      <label class="dd-item"><input type="checkbox" value="Stone Island" onchange="onFilter()"> Stone Island</label>
-      <label class="dd-item"><input type="checkbox" value="Palace" onchange="onFilter()"> Palace</label>
-      <label class="dd-item"><input type="checkbox" value="Stussy" onchange="onFilter()"> Stüssy</label>
-      <div class="dd-sep">Mode</div>
-      <label class="dd-item"><input type="checkbox" value="Zara" onchange="onFilter()"> Zara</label>
-      <label class="dd-item"><input type="checkbox" value="Ralph Lauren" onchange="onFilter()"> Ralph Lauren</label>
-      <label class="dd-item"><input type="checkbox" value="Tommy Hilfiger" onchange="onFilter()"> Tommy Hilfiger</label>
-      <label class="dd-item"><input type="checkbox" value="Lacoste" onchange="onFilter()"> Lacoste</label>
-      <label class="dd-item"><input type="checkbox" value="Levi's" onchange="onFilter()"> Levi's</label>
-      <div class="dd-sep">Outdoor</div>
-      <label class="dd-item"><input type="checkbox" value="The North Face" onchange="onFilter()"> The North Face</label>
-      <label class="dd-item"><input type="checkbox" value="Patagonia" onchange="onFilter()"> Patagonia</label>
-      <label class="dd-item"><input type="checkbox" value="Salomon" onchange="onFilter()"> Salomon</label>
-      <div class="dd-sep">Luxe</div>
-      <label class="dd-item"><input type="checkbox" value="Louis Vuitton" onchange="onFilter()"> Louis Vuitton</label>
-      <label class="dd-item"><input type="checkbox" value="Gucci" onchange="onFilter()"> Gucci</label>
-      <label class="dd-item"><input type="checkbox" value="Balenciaga" onchange="onFilter()"> Balenciaga</label>
-      <div class="dd-sep">Tech</div>
-      <label class="dd-item"><input type="checkbox" value="Apple" onchange="onFilter()"> Apple</label>
-      <label class="dd-item"><input type="checkbox" value="Samsung" onchange="onFilter()"> Samsung</label>
-      <label class="dd-item"><input type="checkbox" value="Sony" onchange="onFilter()"> Sony</label>
-      <label class="dd-item"><input type="checkbox" value="Nintendo" onchange="onFilter()"> Nintendo</label>
+      <div style="padding:8px 14px"><input type="text" id="searchMarque" placeholder="Rechercher une marque..." oninput="filterBrands()" onclick="event.stopPropagation()" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;outline:none"></div>
+      <div id="brandsList"><div style="padding:10px;font-size:12px;color:var(--t2)">Chargement...</div></div>
     </div>
   </div>
 
   <div class="filter-pill" id="pillTaille" onclick="toggleDD('ddTaille',this,event)">
-    Taille
+    Taille <span id="lblTaille"></span>
     <div class="dd" id="ddTaille">
       <div class="dd-sep">Vêtements</div>
       <label class="dd-item"><input type="checkbox" value="XS" onchange="onFilter()"> XS</label>
@@ -322,7 +316,7 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
   </div>
 
   <div class="filter-pill" id="pillPrix" onclick="toggleDD('ddPrix',this,event)">
-    Prix
+    Prix <span id="lblPrix"></span>
     <div class="dd" id="ddPrix" style="min-width:200px">
       <div class="prix-row">
         <input class="prix-inp" type="number" id="pMin" placeholder="Min €" oninput="onFilter()">
@@ -406,8 +400,11 @@ function resetAll() {
   document.querySelectorAll('.dd input[type=checkbox]').forEach(cb => cb.checked = false);
   document.getElementById('pMin').value = '';
   document.getElementById('pMax').value = '';
+  if (document.getElementById('searchMarque')) document.getElementById('searchMarque').value = '';
+  selectedBrands = []; selectedCats = [];
   filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
-  updatePills();
+  ['lblCat','lblMarque','lblTaille','lblPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
+  ['pillCat','pillMarque','pillTaille','pillPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
 }
 
 function matchFilters(o) {
@@ -542,6 +539,60 @@ async function loadInitial() {
   } catch(e) {}
 }
 
+// Charger les vraies marques et catégories Vinted
+let allBrands = [];
+let selectedBrands = [];
+let selectedCats = [];
+
+async function loadVintedData() {
+  try {
+    // Catégories
+    const dc = await fetch('/api/cats').then(r => r.json());
+    const cats = dc.cats || [];
+    const ddCat = document.getElementById('ddCat');
+    if (cats.length) {
+      ddCat.innerHTML = cats.map(c =>
+        '<label class="dd-item"><input type="checkbox" value="' + c.short + '" onchange="onFilterCat()"> ' + c.short + '</label>'
+      ).join('');
+    }
+
+    // Marques
+    const db = await fetch('/api/brands').then(r => r.json());
+    allBrands = db.brands || [];
+    renderBrands(allBrands);
+  } catch(e) {}
+}
+
+function renderBrands(brands) {
+  const list = document.getElementById('brandsList');
+  if (!brands.length) { list.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--t2)">Aucune marque trouvée</div>'; return; }
+  list.innerHTML = brands.slice(0, 150).map(b =>
+    '<label class="dd-item ' + (selectedBrands.includes(b.title) ? 'on' : '') + '">' +
+    '<input type="checkbox" value="' + b.title + '" ' + (selectedBrands.includes(b.title) ? 'checked' : '') + ' onchange="onFilterMarque()"> ' + b.title + '</label>'
+  ).join('');
+}
+
+function filterBrands() {
+  const q = document.getElementById('searchMarque').value.toLowerCase();
+  const filtered = q ? allBrands.filter(b => b.title.toLowerCase().includes(q)) : allBrands;
+  renderBrands(filtered);
+}
+
+function onFilterCat() {
+  selectedCats = [...document.querySelectorAll('#ddCat input:checked')].map(i => i.value);
+  filters.cats = selectedCats;
+  document.getElementById('lblCat').textContent = selectedCats.length ? '(' + selectedCats.length + ')' : '';
+  document.getElementById('pillCat').classList.toggle('active', selectedCats.length > 0);
+}
+
+function onFilterMarque() {
+  selectedBrands = [...document.querySelectorAll('#brandsList input:checked')].map(i => i.value);
+  filters.marques = selectedBrands;
+  document.getElementById('lblMarque').textContent = selectedBrands.length ? '(' + selectedBrands.length + ')' : '';
+  document.getElementById('pillMarque').classList.toggle('active', selectedBrands.length > 0);
+}
+
+loadVintedData();
 loadInitial();
 connectSSE();
 </script>
@@ -564,6 +615,16 @@ def api_stream():
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+@app.route("/api/brands")
+def api_brands():
+    with _vinted_data_lock:
+        return jsonify({"brands": _vinted_brands})
+
+@app.route("/api/cats")
+def api_cats():
+    with _vinted_data_lock:
+        return jsonify({"cats": _vinted_cats})
+
 @app.route("/api/feed")
 def api_feed():
     try:
@@ -577,6 +638,7 @@ def api_feed():
         return jsonify({"error": str(e)}), 500
 
 init_db()
+threading.Thread(target=load_vinted_data, daemon=True).start()
 threading.Thread(target=start_scanner, daemon=True).start()
 
 if __name__ == "__main__":
