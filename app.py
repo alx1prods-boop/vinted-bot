@@ -1193,6 +1193,23 @@ def api_opportunites():
         import traceback
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
+@app.route("/api/debug")
+def api_debug():
+    try:
+        session = get_session()
+        proxy_used = str(session.proxies) if session.proxies else "aucun"
+        r = session.get("https://www.vinted.fr/api/v2/catalog/items?catalog_ids=4&page=1&per_page=5&order=newest_first", timeout=10)
+        return jsonify({
+            "proxy": proxy_used,
+            "status": r.status_code,
+            "nb_items": len(r.json().get("items", [])),
+            "use_pg": USE_PG,
+            "proxies_count": len(PROXIES),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()})
+
 # ── INIT ──────────────────────────────────────────────────────────────────────
 init_db()
 threading.Thread(target=scanner, daemon=True).start()
