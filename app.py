@@ -183,11 +183,11 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .dd-preset:hover{color:#fff}
 
 /* FEED VERTICAL */
-.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none}
+.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;padding:8px 12px;display:flex;flex-direction:column;gap:10px}
 .feed::-webkit-scrollbar{display:none}
 
 /* CARTE */
-.card{height:70dvh;scroll-snap-align:start;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;flex-shrink:0}
+.card{height:82dvh;scroll-snap-align:start;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;flex-shrink:0;border-radius:16px}
 .card-bg{position:absolute;inset:0;z-index:0}
 .card-img{width:100%;height:100%;object-fit:cover}
 .card-img-ph{width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:64px}
@@ -220,7 +220,7 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .bb-icon{font-size:20px}
 
 /* WAITING */
-.waiting-card{height:70dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
+.waiting-card{height:82dvh;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
 .waiting-icon{font-size:48px}
 </style>
 </head><body>
