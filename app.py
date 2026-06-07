@@ -46,7 +46,7 @@ def load_proxies():
         parts = p.strip().split(":")
         if len(parts) == 4:
             host, port, user, pwd = parts
-            proxies.append(f"http://{user}:{pwd}@{host}:{port}")
+            proxies.append("http://" + user + ":" + pwd + "@" + host + ":" + port)
     return proxies
 
 PROXIES = load_proxies()
@@ -144,406 +144,402 @@ def start_scanner():
 HTML = """<!DOCTYPE html>
 <html lang="fr"><head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>VintedFeed</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0a0f;--surface:#13131a;--s2:#1c1c26;--border:#252530;--text:#f0f0f8;--t2:#7070a0;--accent:#7c6af7;--green:#00d68f;--red:#ff4d6d;}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--acc:#b8ff00;--dark:#0a0a0a;--surface:rgba(20,20,20,.95);--text:#fff;--t2:rgba(255,255,255,.6)}
+body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 
-.header{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo{font-size:17px;font-weight:700}.logo em{color:var(--accent);font-style:normal}
-.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2)}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--border)}
-.dot.on{background:var(--green);animation:p 2s infinite}
-@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
-.hright{margin-left:auto;display:flex;align-items:center;gap:8px}
-.speed-group{display:flex;gap:4px}
-.spd{background:var(--s2);border:1px solid var(--border);color:var(--t2);padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;transition:all .15s}
-.spd.on{border-color:var(--accent);color:var(--accent)}
-.ctr{font-size:12px;color:var(--t2)}
+/* HEADER */
+.header{padding:10px 14px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10}
+.logo{font-size:16px;font-weight:800;letter-spacing:-.5px}
+.logo em{color:var(--acc);font-style:normal}
+.header-right{display:flex;align-items:center;gap:8px}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);padding:4px 10px;border-radius:20px;font-size:11px;color:var(--t2)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#555}
+.live-dot.on{background:var(--acc);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-.filters{padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;align-items:center}
-.filter-btn{background:var(--s2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;position:relative;user-select:none}
-.filter-btn:hover{border-color:var(--accent)}
-.filter-btn.active{border-color:var(--accent);color:var(--accent)}
-.dropdown{position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;min-width:200px;max-height:280px;overflow-y:auto;z-index:100;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.dropdown.open{display:block}
-.dropdown::-webkit-scrollbar{width:4px}
-.dropdown::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.dd-item{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12px;cursor:pointer;transition:background .1s}
-.dd-item:hover{background:var(--s2)}
-.dd-item.checked{color:var(--accent)}
-.dd-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0}
-.dd-sep{font-size:10px;color:var(--t2);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--border);margin-top:4px}
-.prix-inputs{display:flex;gap:6px;padding:8px 12px}
-.prix-input{background:var(--s2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:7px;font-size:12px;width:80px}
-.btn-reset{background:transparent;border:1px solid var(--border);color:var(--t2);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer}
+/* FILTRES */
+.filters{padding:0 12px 8px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filter-pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--t2);padding:5px 12px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer;flex-shrink:0;position:relative;user-select:none;transition:all .15s}
+.filter-pill.active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
+.dd{position:absolute;top:calc(100% + 8px);left:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:200px;max-height:300px;overflow-y:auto;z-index:100;display:none;box-shadow:0 8px 32px rgba(0,0,0,.8)}
+.dd.open{display:block}
+.dd::-webkit-scrollbar{width:3px}
+.dd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.dd-item{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;cursor:pointer;transition:background .1s}
+.dd-item:hover{background:rgba(255,255,255,.06)}
+.dd-item.on{color:var(--acc)}
+.dd-item input{accent-color:var(--acc);width:15px;height:15px;flex-shrink:0}
+.dd-sep{font-size:10px;color:var(--t2);padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.06);margin-top:4px}
+.dd-sep:first-child{border-top:none;margin-top:0}
+.prix-row{display:flex;gap:6px;padding:10px 14px}
+.prix-inp{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;width:80px;outline:none}
+.prix-inp:focus{border-color:var(--acc)}
+.dd-preset{padding:8px 14px;font-size:13px;cursor:pointer;color:var(--t2)}
+.dd-preset:hover{color:#fff}
 
-.progress-bar{height:3px;background:var(--s2);flex-shrink:0}
-.progress-fill{height:100%;background:var(--accent);width:100%}
+/* FEED VERTICAL */
+.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none}
+.feed::-webkit-scrollbar{display:none}
 
-.stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px;position:relative}
+/* CARTE */
+.card{height:100dvh;scroll-snap-align:start;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;flex-shrink:0}
+.card-bg{position:absolute;inset:0;z-index:0}
+.card-img{width:100%;height:100%;object-fit:cover}
+.card-img-ph{width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:64px}
+.card-gradient{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.2) 0%, transparent 30%, transparent 50%, rgba(0,0,0,.85) 100%)}
 
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:360px;overflow:hidden;animation:pop .3s cubic-bezier(.34,1.56,.64,1)}
-@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-.card-img-wrap{position:relative;height:280px;background:var(--s2);overflow:hidden}
-.card-img{width:100%;height:100%;object-fit:cover;display:block}
-.card-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--border)}
-.badge-new{position:absolute;top:10px;left:10px;font-size:10px;font-weight:700;background:var(--green);color:#000;padding:3px 9px;border-radius:20px}
-.badge-cat{position:absolute;top:10px;right:10px;font-size:10px;background:rgba(0,0,0,.65);color:#fff;padding:3px 9px;border-radius:20px}
-.card-body{padding:14px}
-.card-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
-.card-titre{font-size:14px;font-weight:600;line-height:1.3;flex:1}
-.card-prix{font-size:22px;font-weight:700;color:var(--accent);flex-shrink:0}
+/* BADGES TOP */
+.card-top{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:flex-start;justify-content:space-between;z-index:2}
+.badge-new{background:var(--acc);color:#000;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
+.badge-ts{background:rgba(0,0,0,.5);color:var(--t2);font-size:11px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(8px)}
+
+/* INFOS BAS */
+.card-info{position:relative;z-index:2;padding:16px 14px 20px}
+.card-prix-row{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.card-prix-main{font-size:28px;font-weight:800;line-height:1}
+.card-prix-frais{font-size:13px;color:var(--t2);text-decoration:line-through}
 .card-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.pill{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--s2)}
-.pill.marque{color:var(--accent);border:1px solid rgba(124,106,247,.3)}
-.card-fav{font-size:11px;color:var(--t2);margin-bottom:12px}
-.card-actions{display:flex;gap:8px}
-.btn-buy{flex:2;background:var(--accent);color:#fff;font-size:13px;font-weight:700;padding:11px;border-radius:10px;text-decoration:none;text-align:center;transition:opacity .15s;display:block}
-.btn-buy:hover{opacity:.85}
-.btn-see{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--t2);font-size:13px;padding:11px;border-radius:10px;text-decoration:none;text-align:center;display:block;transition:all .15s}
-.btn-see:hover{border-color:var(--t2);color:var(--text)}
-.btn-skip{flex:1;background:transparent;border:1px solid var(--border);color:var(--t2);font-size:13px;padding:11px;border-radius:10px;cursor:pointer;transition:all .15s}
-.btn-skip:hover{border-color:var(--red);color:var(--red)}
+.cpill{background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.card-titre{font-size:14px;color:rgba(255,255,255,.8);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
-.waiting{text-align:center;color:var(--t2)}.waiting-icon{font-size:40px;margin-bottom:10px}
-.overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;font-size:14px;color:#fff;border-radius:16px;cursor:pointer}
-.overlay.show{display:flex}
+/* BOUTON ACHAT */
+.card-actions{position:absolute;right:14px;bottom:80px;display:flex;flex-direction:column;gap:10px;z-index:2;align-items:center}
+.btn-flash{width:52px;height:52px;border-radius:50%;background:var(--acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(184,255,0,.4);transition:transform .15s}
+.btn-flash:hover{transform:scale(1.1)}
+.btn-see{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none}
+
+/* BARRE BAS */
+.bottombar{flex-shrink:0;background:rgba(10,10,10,.95);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.06);padding:10px 20px;display:flex;align-items:center;justify-content:space-around;z-index:10}
+.bb-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--t2);font-size:10px;cursor:pointer;padding:0}
+.bb-btn.active{color:var(--acc)}
+.bb-icon{font-size:20px}
+
+/* WAITING */
+.waiting-card{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
+.waiting-icon{font-size:48px}
 </style>
 </head><body>
 
 <div class="header">
   <div class="logo">Vinted<em>Feed</em></div>
-  <div class="live"><div class="dot" id="dot"></div><span id="liveText">Connexion...</span></div>
-  <div class="hright">
-    <span class="ctr" id="ctr">0 vus</span>
-    <div class="speed-group">
-      <button class="spd" onclick="setSpd(3000,this)">3s</button>
-      <button class="spd on" onclick="setSpd(6000,this)">6s</button>
-      <button class="spd" onclick="setSpd(10000,this)">10s</button>
+  <div class="header-right">
+    <div class="live-pill">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveText">Connexion...</span>
     </div>
   </div>
 </div>
 
 <div class="filters" id="filtersBar">
-  <!-- Catégories -->
-  <div class="filter-btn" id="btnCat" onclick="toggleDD('ddCat',event)">
-    Catégorie <span id="lblCat"></span> ▾
-    <div class="dropdown" id="ddCat">
-      <label class="dd-item"><input type="checkbox" value="Vetements femme" onchange="updateFilter('cat',event)"> Vêtements femme</label>
-      <label class="dd-item"><input type="checkbox" value="Vetements homme" onchange="updateFilter('cat',event)"> Vêtements homme</label>
-      <label class="dd-item"><input type="checkbox" value="Chaussures femme" onchange="updateFilter('cat',event)"> Chaussures femme</label>
-      <label class="dd-item"><input type="checkbox" value="Chaussures homme" onchange="updateFilter('cat',event)"> Chaussures homme</label>
-      <label class="dd-item"><input type="checkbox" value="Sacs" onchange="updateFilter('cat',event)"> Sacs</label>
-      <label class="dd-item"><input type="checkbox" value="Accessoires" onchange="updateFilter('cat',event)"> Accessoires</label>
-      <label class="dd-item"><input type="checkbox" value="Sport" onchange="updateFilter('cat',event)"> Sport</label>
-      <label class="dd-item"><input type="checkbox" value="Electronique" onchange="updateFilter('cat',event)"> Électronique</label>
-      <label class="dd-item"><input type="checkbox" value="Maison" onchange="updateFilter('cat',event)"> Maison</label>
-      <label class="dd-item"><input type="checkbox" value="Jeux video" onchange="updateFilter('cat',event)"> Jeux vidéo</label>
-      <label class="dd-item"><input type="checkbox" value="Livres" onchange="updateFilter('cat',event)"> Livres</label>
-      <label class="dd-item"><input type="checkbox" value="Enfants" onchange="updateFilter('cat',event)"> Enfants</label>
-    </div>
-  </div>
-
-  <!-- Marques -->
-  <div class="filter-btn" id="btnMarque" onclick="toggleDD('ddMarque',event)">
-    Marque <span id="lblMarque"></span> ▾
-    <div class="dropdown" id="ddMarque">
-      <div class="dd-sep">Sneakers</div>
-      <label class="dd-item"><input type="checkbox" value="Nike" onchange="updateFilter('marque',event)"> Nike</label>
-      <label class="dd-item"><input type="checkbox" value="Adidas" onchange="updateFilter('marque',event)"> Adidas</label>
-      <label class="dd-item"><input type="checkbox" value="Jordan" onchange="updateFilter('marque',event)"> Jordan</label>
-      <label class="dd-item"><input type="checkbox" value="New Balance" onchange="updateFilter('marque',event)"> New Balance</label>
-      <label class="dd-item"><input type="checkbox" value="Puma" onchange="updateFilter('marque',event)"> Puma</label>
-      <label class="dd-item"><input type="checkbox" value="Converse" onchange="updateFilter('marque',event)"> Converse</label>
-      <label class="dd-item"><input type="checkbox" value="Vans" onchange="updateFilter('marque',event)"> Vans</label>
-      <label class="dd-item"><input type="checkbox" value="Reebok" onchange="updateFilter('marque',event)"> Reebok</label>
-      <div class="dd-sep">Streetwear</div>
-      <label class="dd-item"><input type="checkbox" value="Supreme" onchange="updateFilter('marque',event)"> Supreme</label>
-      <label class="dd-item"><input type="checkbox" value="Carhartt" onchange="updateFilter('marque',event)"> Carhartt</label>
-      <label class="dd-item"><input type="checkbox" value="Stone Island" onchange="updateFilter('marque',event)"> Stone Island</label>
-      <label class="dd-item"><input type="checkbox" value="Palace" onchange="updateFilter('marque',event)"> Palace</label>
-      <label class="dd-item"><input type="checkbox" value="Stussy" onchange="updateFilter('marque',event)"> Stüssy</label>
-      <div class="dd-sep">Mode</div>
-      <label class="dd-item"><input type="checkbox" value="Zara" onchange="updateFilter('marque',event)"> Zara</label>
-      <label class="dd-item"><input type="checkbox" value="H&M" onchange="updateFilter('marque',event)"> H&M</label>
-      <label class="dd-item"><input type="checkbox" value="Ralph Lauren" onchange="updateFilter('marque',event)"> Ralph Lauren</label>
-      <label class="dd-item"><input type="checkbox" value="Tommy Hilfiger" onchange="updateFilter('marque',event)"> Tommy Hilfiger</label>
-      <label class="dd-item"><input type="checkbox" value="Lacoste" onchange="updateFilter('marque',event)"> Lacoste</label>
-      <label class="dd-item"><input type="checkbox" value="Levi's" onchange="updateFilter('marque',event)"> Levi's</label>
-      <div class="dd-sep">Outdoor</div>
-      <label class="dd-item"><input type="checkbox" value="The North Face" onchange="updateFilter('marque',event)"> The North Face</label>
-      <label class="dd-item"><input type="checkbox" value="Patagonia" onchange="updateFilter('marque',event)"> Patagonia</label>
-      <label class="dd-item"><input type="checkbox" value="Arc'teryx" onchange="updateFilter('marque',event)"> Arc'teryx</label>
-      <label class="dd-item"><input type="checkbox" value="Salomon" onchange="updateFilter('marque',event)"> Salomon</label>
-      <div class="dd-sep">Luxe</div>
-      <label class="dd-item"><input type="checkbox" value="Louis Vuitton" onchange="updateFilter('marque',event)"> Louis Vuitton</label>
-      <label class="dd-item"><input type="checkbox" value="Gucci" onchange="updateFilter('marque',event)"> Gucci</label>
-      <label class="dd-item"><input type="checkbox" value="Balenciaga" onchange="updateFilter('marque',event)"> Balenciaga</label>
-      <label class="dd-item"><input type="checkbox" value="Dior" onchange="updateFilter('marque',event)"> Dior</label>
-      <div class="dd-sep">Tech</div>
-      <label class="dd-item"><input type="checkbox" value="Apple" onchange="updateFilter('marque',event)"> Apple</label>
-      <label class="dd-item"><input type="checkbox" value="Samsung" onchange="updateFilter('marque',event)"> Samsung</label>
-      <label class="dd-item"><input type="checkbox" value="Sony" onchange="updateFilter('marque',event)"> Sony</label>
-      <label class="dd-item"><input type="checkbox" value="Nintendo" onchange="updateFilter('marque',event)"> Nintendo</label>
-    </div>
-  </div>
-
-  <!-- Taille -->
-  <div class="filter-btn" id="btnTaille" onclick="toggleDD('ddTaille',event)">
-    Taille <span id="lblTaille"></span> ▾
-    <div class="dropdown" id="ddTaille">
+  <div class="filter-pill" id="pillCat" onclick="toggleDD('ddCat',this,event)">
+    Catégorie
+    <div class="dd" id="ddCat">
       <div class="dd-sep">Vêtements</div>
-      <label class="dd-item"><input type="checkbox" value="XS" onchange="updateFilter('taille',event)"> XS</label>
-      <label class="dd-item"><input type="checkbox" value="S" onchange="updateFilter('taille',event)"> S</label>
-      <label class="dd-item"><input type="checkbox" value="M" onchange="updateFilter('taille',event)"> M</label>
-      <label class="dd-item"><input type="checkbox" value="L" onchange="updateFilter('taille',event)"> L</label>
-      <label class="dd-item"><input type="checkbox" value="XL" onchange="updateFilter('taille',event)"> XL</label>
-      <label class="dd-item"><input type="checkbox" value="XXL" onchange="updateFilter('taille',event)"> XXL</label>
+      <label class="dd-item"><input type="checkbox" value="Vetements femme" onchange="onFilter()"> Femme</label>
+      <label class="dd-item"><input type="checkbox" value="Vetements homme" onchange="onFilter()"> Homme</label>
       <div class="dd-sep">Chaussures</div>
-      <label class="dd-item"><input type="checkbox" value="36" onchange="updateFilter('taille',event)"> 36</label>
-      <label class="dd-item"><input type="checkbox" value="37" onchange="updateFilter('taille',event)"> 37</label>
-      <label class="dd-item"><input type="checkbox" value="38" onchange="updateFilter('taille',event)"> 38</label>
-      <label class="dd-item"><input type="checkbox" value="39" onchange="updateFilter('taille',event)"> 39</label>
-      <label class="dd-item"><input type="checkbox" value="40" onchange="updateFilter('taille',event)"> 40</label>
-      <label class="dd-item"><input type="checkbox" value="41" onchange="updateFilter('taille',event)"> 41</label>
-      <label class="dd-item"><input type="checkbox" value="42" onchange="updateFilter('taille',event)"> 42</label>
-      <label class="dd-item"><input type="checkbox" value="43" onchange="updateFilter('taille',event)"> 43</label>
-      <label class="dd-item"><input type="checkbox" value="44" onchange="updateFilter('taille',event)"> 44</label>
-      <label class="dd-item"><input type="checkbox" value="45" onchange="updateFilter('taille',event)"> 45</label>
+      <label class="dd-item"><input type="checkbox" value="Chaussures femme" onchange="onFilter()"> Femme</label>
+      <label class="dd-item"><input type="checkbox" value="Chaussures homme" onchange="onFilter()"> Homme</label>
+      <div class="dd-sep">Autres</div>
+      <label class="dd-item"><input type="checkbox" value="Sacs" onchange="onFilter()"> Sacs</label>
+      <label class="dd-item"><input type="checkbox" value="Accessoires" onchange="onFilter()"> Accessoires</label>
+      <label class="dd-item"><input type="checkbox" value="Sport" onchange="onFilter()"> Sport</label>
+      <label class="dd-item"><input type="checkbox" value="Electronique" onchange="onFilter()"> Électronique</label>
+      <label class="dd-item"><input type="checkbox" value="Maison" onchange="onFilter()"> Maison</label>
+      <label class="dd-item"><input type="checkbox" value="Jeux video" onchange="onFilter()"> Jeux vidéo</label>
+      <label class="dd-item"><input type="checkbox" value="Livres" onchange="onFilter()"> Livres</label>
+      <label class="dd-item"><input type="checkbox" value="Enfants" onchange="onFilter()"> Enfants</label>
     </div>
   </div>
 
-  <!-- Prix -->
-  <div class="filter-btn" id="btnPrix" onclick="toggleDD('ddPrix',event)">
-    Prix <span id="lblPrix"></span> ▾
-    <div class="dropdown" id="ddPrix" style="min-width:180px">
-      <div class="prix-inputs">
-        <input class="prix-input" type="number" id="prixMin" placeholder="Min €" onchange="updatePrix()">
-        <input class="prix-input" type="number" id="prixMax" placeholder="Max €" onchange="updatePrix()">
+  <div class="filter-pill" id="pillMarque" onclick="toggleDD('ddMarque',this,event)">
+    Marque
+    <div class="dd" id="ddMarque">
+      <div class="dd-sep">Sneakers</div>
+      <label class="dd-item"><input type="checkbox" value="Nike" onchange="onFilter()"> Nike</label>
+      <label class="dd-item"><input type="checkbox" value="Adidas" onchange="onFilter()"> Adidas</label>
+      <label class="dd-item"><input type="checkbox" value="Jordan" onchange="onFilter()"> Jordan</label>
+      <label class="dd-item"><input type="checkbox" value="New Balance" onchange="onFilter()"> New Balance</label>
+      <label class="dd-item"><input type="checkbox" value="Puma" onchange="onFilter()"> Puma</label>
+      <label class="dd-item"><input type="checkbox" value="Converse" onchange="onFilter()"> Converse</label>
+      <label class="dd-item"><input type="checkbox" value="Vans" onchange="onFilter()"> Vans</label>
+      <label class="dd-item"><input type="checkbox" value="Reebok" onchange="onFilter()"> Reebok</label>
+      <div class="dd-sep">Streetwear</div>
+      <label class="dd-item"><input type="checkbox" value="Supreme" onchange="onFilter()"> Supreme</label>
+      <label class="dd-item"><input type="checkbox" value="Carhartt" onchange="onFilter()"> Carhartt</label>
+      <label class="dd-item"><input type="checkbox" value="Stone Island" onchange="onFilter()"> Stone Island</label>
+      <label class="dd-item"><input type="checkbox" value="Palace" onchange="onFilter()"> Palace</label>
+      <label class="dd-item"><input type="checkbox" value="Stussy" onchange="onFilter()"> Stüssy</label>
+      <div class="dd-sep">Mode</div>
+      <label class="dd-item"><input type="checkbox" value="Zara" onchange="onFilter()"> Zara</label>
+      <label class="dd-item"><input type="checkbox" value="Ralph Lauren" onchange="onFilter()"> Ralph Lauren</label>
+      <label class="dd-item"><input type="checkbox" value="Tommy Hilfiger" onchange="onFilter()"> Tommy Hilfiger</label>
+      <label class="dd-item"><input type="checkbox" value="Lacoste" onchange="onFilter()"> Lacoste</label>
+      <label class="dd-item"><input type="checkbox" value="Levi's" onchange="onFilter()"> Levi's</label>
+      <div class="dd-sep">Outdoor</div>
+      <label class="dd-item"><input type="checkbox" value="The North Face" onchange="onFilter()"> The North Face</label>
+      <label class="dd-item"><input type="checkbox" value="Patagonia" onchange="onFilter()"> Patagonia</label>
+      <label class="dd-item"><input type="checkbox" value="Salomon" onchange="onFilter()"> Salomon</label>
+      <div class="dd-sep">Luxe</div>
+      <label class="dd-item"><input type="checkbox" value="Louis Vuitton" onchange="onFilter()"> Louis Vuitton</label>
+      <label class="dd-item"><input type="checkbox" value="Gucci" onchange="onFilter()"> Gucci</label>
+      <label class="dd-item"><input type="checkbox" value="Balenciaga" onchange="onFilter()"> Balenciaga</label>
+      <div class="dd-sep">Tech</div>
+      <label class="dd-item"><input type="checkbox" value="Apple" onchange="onFilter()"> Apple</label>
+      <label class="dd-item"><input type="checkbox" value="Samsung" onchange="onFilter()"> Samsung</label>
+      <label class="dd-item"><input type="checkbox" value="Sony" onchange="onFilter()"> Sony</label>
+      <label class="dd-item"><input type="checkbox" value="Nintendo" onchange="onFilter()"> Nintendo</label>
+    </div>
+  </div>
+
+  <div class="filter-pill" id="pillTaille" onclick="toggleDD('ddTaille',this,event)">
+    Taille
+    <div class="dd" id="ddTaille">
+      <div class="dd-sep">Vêtements</div>
+      <label class="dd-item"><input type="checkbox" value="XS" onchange="onFilter()"> XS</label>
+      <label class="dd-item"><input type="checkbox" value="S" onchange="onFilter()"> S</label>
+      <label class="dd-item"><input type="checkbox" value="M" onchange="onFilter()"> M</label>
+      <label class="dd-item"><input type="checkbox" value="L" onchange="onFilter()"> L</label>
+      <label class="dd-item"><input type="checkbox" value="XL" onchange="onFilter()"> XL</label>
+      <label class="dd-item"><input type="checkbox" value="XXL" onchange="onFilter()"> XXL</label>
+      <div class="dd-sep">Chaussures</div>
+      <label class="dd-item"><input type="checkbox" value="36" onchange="onFilter()"> 36</label>
+      <label class="dd-item"><input type="checkbox" value="37" onchange="onFilter()"> 37</label>
+      <label class="dd-item"><input type="checkbox" value="38" onchange="onFilter()"> 38</label>
+      <label class="dd-item"><input type="checkbox" value="39" onchange="onFilter()"> 39</label>
+      <label class="dd-item"><input type="checkbox" value="40" onchange="onFilter()"> 40</label>
+      <label class="dd-item"><input type="checkbox" value="41" onchange="onFilter()"> 41</label>
+      <label class="dd-item"><input type="checkbox" value="42" onchange="onFilter()"> 42</label>
+      <label class="dd-item"><input type="checkbox" value="43" onchange="onFilter()"> 43</label>
+      <label class="dd-item"><input type="checkbox" value="44" onchange="onFilter()"> 44</label>
+      <label class="dd-item"><input type="checkbox" value="45" onchange="onFilter()"> 45</label>
+    </div>
+  </div>
+
+  <div class="filter-pill" id="pillPrix" onclick="toggleDD('ddPrix',this,event)">
+    Prix
+    <div class="dd" id="ddPrix" style="min-width:200px">
+      <div class="prix-row">
+        <input class="prix-inp" type="number" id="pMin" placeholder="Min €" oninput="onFilter()">
+        <input class="prix-inp" type="number" id="pMax" placeholder="Max €" oninput="onFilter()">
       </div>
-      <label class="dd-item" onclick="setPreset(0,10)"> Moins de 10€</label>
-      <label class="dd-item" onclick="setPreset(0,20)"> Moins de 20€</label>
-      <label class="dd-item" onclick="setPreset(0,50)"> Moins de 50€</label>
-      <label class="dd-item" onclick="setPreset(10,30)"> 10€ — 30€</label>
-      <label class="dd-item" onclick="setPreset(20,50)"> 20€ — 50€</label>
-      <label class="dd-item" onclick="setPreset(50,999)"> Plus de 50€</label>
+      <div class="dd-preset" onclick="setPreset(0,10)">Moins de 10€</div>
+      <div class="dd-preset" onclick="setPreset(0,20)">Moins de 20€</div>
+      <div class="dd-preset" onclick="setPreset(0,50)">Moins de 50€</div>
+      <div class="dd-preset" onclick="setPreset(10,30)">10€ — 30€</div>
+      <div class="dd-preset" onclick="setPreset(20,50)">20€ — 50€</div>
+      <div class="dd-preset" onclick="setPreset(50,999)">Plus de 50€</div>
     </div>
   </div>
 
-  <button class="btn-reset" onclick="resetAll()">Reset</button>
+  <div class="filter-pill" id="pillReset" onclick="resetAll()" style="color:rgba(255,100,100,.7)">Reset</div>
 </div>
 
-<div class="progress-bar"><div class="progress-fill" id="pFill" style="width:100%;transition:none"></div></div>
+<div class="feed" id="feed">
+  <div class="waiting-card">
+    <div class="waiting-icon">⚡</div>
+    <div>Connexion au feed...</div>
+  </div>
+</div>
 
-<div class="stage" id="stage">
-  <div class="waiting"><div class="waiting-icon">⚡</div><div>Connexion au feed...</div></div>
+<div class="bottombar">
+  <button class="bb-btn active">
+    <span class="bb-icon">⚡</span>
+    <span>Feed</span>
+  </button>
+  <button class="bb-btn" onclick="scrollToTop()">
+    <span class="bb-icon">🔝</span>
+    <span>Top</span>
+  </button>
+  <button class="bb-btn" id="notifBtn" onclick="toggleNotif()">
+    <span class="bb-icon">🔔</span>
+    <span>Alertes</span>
+  </button>
 </div>
 
 <script>
-// ── ÉTAT ─────────────────────────────────────────────────────────────────────
-let buffer = [];
 let seenIds = new Set();
-let viewed = 0;
-let speed = 6000;
-let paused = false;
-let timer = null;
-let filters = {cats:[], marques:[], tailles:[], prixMin:0, prixMax:0};
+let notifOn = false;
 let sseSource = null;
+let filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
 
-// ── VITESSE ───────────────────────────────────────────────────────────────────
-function setSpd(ms, btn) {
-  speed = ms;
-  document.querySelectorAll('.spd').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  if (!paused) scheduleNext(false);
-}
-
-// ── FILTRES DROPDOWN ──────────────────────────────────────────────────────────
-function toggleDD(id, e) {
+// ── DROPDOWN ─────────────────────────────────────────────────────────────────
+function toggleDD(id, pill, e) {
   e.stopPropagation();
   const dd = document.getElementById(id);
   const wasOpen = dd.classList.contains('open');
-  document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
   if (!wasOpen) dd.classList.add('open');
 }
-document.addEventListener('click', () => {
-  document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-});
+document.addEventListener('click', () => document.querySelectorAll('.dd').forEach(d => d.classList.remove('open')));
 
-function updateFilter(type, e) {
-  e.stopPropagation();
-  const val = e.target.value;
-  const checked = e.target.checked;
-  if (type === 'cat') {
-    if (checked) filters.cats.push(val);
-    else filters.cats = filters.cats.filter(v => v !== val);
-    document.getElementById('lblCat').textContent = filters.cats.length ? '('+filters.cats.length+')' : '';
-    document.getElementById('btnCat').classList.toggle('active', filters.cats.length > 0);
-  } else if (type === 'marque') {
-    if (checked) filters.marques.push(val);
-    else filters.marques = filters.marques.filter(v => v !== val);
-    document.getElementById('lblMarque').textContent = filters.marques.length ? '('+filters.marques.length+')' : '';
-    document.getElementById('btnMarque').classList.toggle('active', filters.marques.length > 0);
-  } else if (type === 'taille') {
-    if (checked) filters.tailles.push(val);
-    else filters.tailles = filters.tailles.filter(v => v !== val);
-    document.getElementById('lblTaille').textContent = filters.tailles.length ? '('+filters.tailles.length+')' : '';
-    document.getElementById('btnTaille').classList.toggle('active', filters.tailles.length > 0);
-  }
+// ── FILTRES ───────────────────────────────────────────────────────────────────
+function onFilter() {
+  filters.cats = [...document.querySelectorAll('#ddCat input:checked')].map(i => i.value);
+  filters.marques = [...document.querySelectorAll('#ddMarque input:checked')].map(i => i.value);
+  filters.tailles = [...document.querySelectorAll('#ddTaille input:checked')].map(i => i.value);
+  filters.pMin = parseFloat(document.getElementById('pMin').value) || 0;
+  filters.pMax = parseFloat(document.getElementById('pMax').value) || 0;
+  updatePills();
 }
 
-function updatePrix() {
-  filters.prixMin = parseFloat(document.getElementById('prixMin').value) || 0;
-  filters.prixMax = parseFloat(document.getElementById('prixMax').value) || 0;
-  const lbl = filters.prixMin || filters.prixMax ?
-    (filters.prixMin ? filters.prixMin+'€' : '') + (filters.prixMax ? '—'+filters.prixMax+'€' : '') : '';
-  document.getElementById('lblPrix').textContent = lbl ? '('+lbl+')' : '';
-  document.getElementById('btnPrix').classList.toggle('active', !!(filters.prixMin || filters.prixMax));
+function updatePills() {
+  document.getElementById('pillCat').classList.toggle('active', filters.cats.length > 0);
+  document.getElementById('pillMarque').classList.toggle('active', filters.marques.length > 0);
+  document.getElementById('pillTaille').classList.toggle('active', filters.tailles.length > 0);
+  document.getElementById('pillPrix').classList.toggle('active', !!(filters.pMin || filters.pMax));
 }
 
 function setPreset(mn, mx) {
-  document.getElementById('prixMin').value = mn || '';
-  document.getElementById('prixMax').value = mx === 999 ? '' : mx;
-  filters.prixMin = mn; filters.prixMax = mx;
-  updatePrix();
+  document.getElementById('pMin').value = mn || '';
+  document.getElementById('pMax').value = mx === 999 ? '' : mx;
+  filters.pMin = mn; filters.pMax = mx;
+  updatePills();
 }
 
 function resetAll() {
-  filters = {cats:[], marques:[], tailles:[], prixMin:0, prixMax:0};
-  document.querySelectorAll('.dropdown input[type=checkbox]').forEach(cb => cb.checked = false);
-  document.getElementById('prixMin').value = '';
-  document.getElementById('prixMax').value = '';
-  ['Cat','Marque','Taille','Prix'].forEach(k => {
-    document.getElementById('lbl'+k).textContent = '';
-    document.getElementById('btn'+k).classList.remove('active');
-  });
+  document.querySelectorAll('.dd input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('pMin').value = '';
+  document.getElementById('pMax').value = '';
+  filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
+  updatePills();
 }
 
 function matchFilters(o) {
   if (filters.cats.length && !filters.cats.includes(o.categorie)) return false;
   if (filters.marques.length && !filters.marques.some(m => (o.marque||'').toLowerCase().includes(m.toLowerCase()))) return false;
   if (filters.tailles.length && !filters.tailles.some(t => (o.taille||'').includes(t))) return false;
-  if (filters.prixMin && o.prix < filters.prixMin) return false;
-  if (filters.prixMax && o.prix > filters.prixMax) return false;
+  if (filters.pMin && o.prix < filters.pMin) return false;
+  if (filters.pMax && o.prix > filters.pMax) return false;
   return true;
 }
 
 // ── CARTE ─────────────────────────────────────────────────────────────────────
-function showCard(o) {
-  const stage = document.getElementById('stage');
-  stage.innerHTML = '';
+function makeCard(o, isNew) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = o.id;
 
-  const isNew = o._isNew || false;
-  const imgHtml = o.photo_url
-    ? '<img class="card-img" src="'+o.photo_url+'" loading="eager" onerror="this.style.display=\'none\';document.getElementById(\'ph_'+o.id+'\').style.display=\'flex\'">'
-    : '';
-  const phHtml = '<div class="card-ph" id="ph_'+o.id+'" style="'+(o.photo_url?'display:none':'')+'">🏷️</div>';
+  const fraisIncl = Math.round(o.prix * 1.05 * 100) / 100;
+  const ts = isNew ? 'Il y a 1 seconde' : 'Recent';
 
-  stage.innerHTML =
-    '<div class="card">' +
-      '<div class="card-img-wrap">' +
-        imgHtml + phHtml +
-        (isNew ? '<span class="badge-new">NOUVEAU</span>' : '') +
-        '<span class="badge-cat">'+(o.categorie||'')+'</span>' +
-      '</div>' +
-      '<div class="card-body">' +
-        '<div class="card-row1">' +
-          '<div class="card-titre">'+(o.titre||'')+'</div>' +
-          '<div class="card-prix">'+o.prix+'€</div>' +
-        '</div>' +
-        '<div class="card-pills">' +
-          (o.marque ? '<span class="pill marque">'+o.marque+'</span>' : '') +
-          (o.taille ? '<span class="pill">'+o.taille+'</span>' : '') +
-        '</div>' +
-        (o.nb_favoris ? '<div class="card-fav">❤️ '+o.nb_favoris+' favoris</div>' : '') +
-        '<div class="card-actions">' +
-          '<a class="btn-buy" href="'+o.url+'" target="_blank">💳 Acheter</a>' +
-          '<a class="btn-see" href="'+o.url+'" target="_blank">👁 Voir</a>' +
-          '<button class="btn-skip" onclick="skipCard()">⏭</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  viewed++;
-  document.getElementById('ctr').textContent = viewed + ' vus';
-  startProgress();
-}
-
-function nextCard() {
-  let art = null;
-  while (buffer.length > 0) {
-    const a = buffer.shift();
-    if (matchFilters(a)) { art = a; break; }
-  }
-  if (art) {
-    showCard(art);
+  let imgHtml = '';
+  if (o.photo_url) {
+    imgHtml = '<img class="card-img" src="' + o.photo_url + '" loading="lazy">';
   } else {
-    document.getElementById('stage').innerHTML = '<div class="waiting"><div class="waiting-icon">⏳</div><div>En attente de nouveaux articles...</div></div>';
-    document.getElementById('pFill').style.width = '100%';
+    imgHtml = '<div class="card-img-ph">🏷️</div>';
   }
+
+  let pills = '';
+  if (o.marque) pills += '<span class="cpill">' + o.marque + '</span>';
+  if (o.taille) pills += '<span class="cpill">' + o.taille + '</span>';
+  if (o.categorie) pills += '<span class="cpill">' + o.categorie + '</span>';
+
+  card.innerHTML =
+    '<div class="card-bg">' + imgHtml + '<div class="card-gradient"></div></div>' +
+    '<div class="card-top">' +
+      (isNew ? '<span class="badge-new">NOUVEAU</span>' : '<span></span>') +
+      '<span class="badge-ts">' + ts + '</span>' +
+    '</div>' +
+    '<div class="card-actions">' +
+      '<a href="' + o.url + '" target="_blank" class="btn-flash" title="Acheter">⚡</a>' +
+      '<a href="' + o.url + '" target="_blank" class="btn-see" title="Voir">↗</a>' +
+    '</div>' +
+    '<div class="card-info">' +
+      '<div class="card-prix-row">' +
+        '<span class="card-prix-main">' + o.prix + '€</span>' +
+        '<span class="card-prix-frais">' + fraisIncl + '€ frais incl.</span>' +
+      '</div>' +
+      '<div class="card-pills">' + pills + '</div>' +
+      '<div class="card-titre">' + (o.titre || '') + '</div>' +
+    '</div>';
+
+  return card;
 }
 
-function skipCard() {
-  clearTimeout(timer);
-  nextCard();
-}
+function addCard(o, isNew) {
+  if (seenIds.has(o.id)) return;
+  if (!matchFilters(o)) return;
+  seenIds.add(o.id);
 
-function scheduleNext(immediate) {
-  clearTimeout(timer);
-  if (paused) return;
-  timer = setTimeout(nextCard, immediate ? 0 : speed);
-}
+  const feed = document.getElementById('feed');
+  const waiting = feed.querySelector('.waiting-card');
+  if (waiting) feed.innerHTML = '';
 
-function startProgress() {
-  const bar = document.getElementById('pFill');
-  bar.style.transition = 'none';
-  bar.style.width = '100%';
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      bar.style.transition = 'width '+speed+'ms linear';
-      bar.style.width = '0%';
+  const card = makeCard(o, isNew);
+
+  if (isNew) {
+    feed.prepend(card);
+  } else {
+    feed.appendChild(card);
+  }
+
+  // Notification
+  if (notifOn && isNew && Notification.permission === 'granted') {
+    const n = new Notification((o.marque || o.categorie) + ' — ' + o.prix + '€', {
+      body: o.titre,
+      tag: o.id,
     });
-  });
-  scheduleNext(false);
+    n.onclick = function() { window.open(o.url, '_blank'); n.close(); };
+    setTimeout(function() { n.close(); }, 6000);
+  }
+
+  // Limiter à 200 cartes
+  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
 }
 
 // ── SSE ───────────────────────────────────────────────────────────────────────
 function connectSSE() {
   if (sseSource) sseSource.close();
   sseSource = new EventSource('/api/stream');
-  sseSource.onopen = () => {
-    document.getElementById('dot').classList.add('on');
+  sseSource.onopen = function() {
+    document.getElementById('liveDot').classList.add('on');
     document.getElementById('liveText').textContent = 'En direct';
   };
-  sseSource.onmessage = (e) => {
+  sseSource.onmessage = function(e) {
     if (!e.data || e.data === '{}') return;
     try {
-      const o = JSON.parse(e.data);
-      if (!o.id || seenIds.has(o.id)) return;
-      seenIds.add(o.id);
-      o._isNew = true;
-      buffer.push(o);
-      if (document.querySelector('.waiting')) nextCard();
+      var o = JSON.parse(e.data);
+      if (!o.id) return;
+      addCard(o, true);
     } catch(err) {}
   };
-  sseSource.onerror = () => {
-    document.getElementById('dot').classList.remove('on');
+  sseSource.onerror = function() {
+    document.getElementById('liveDot').classList.remove('on');
     document.getElementById('liveText').textContent = 'Reconnexion...';
     sseSource.close();
     setTimeout(connectSSE, 3000);
   };
 }
 
+// ── NOTIFS ────────────────────────────────────────────────────────────────────
+function toggleNotif() {
+  if (!('Notification' in window)) return;
+  Notification.requestPermission().then(function(p) {
+    if (p === 'granted') {
+      notifOn = !notifOn;
+      var btn = document.getElementById('notifBtn');
+      btn.classList.toggle('active', notifOn);
+    }
+  });
+}
+
+function scrollToTop() {
+  document.getElementById('feed').scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
 async function loadInitial() {
   try {
-    const d = await fetch('/api/feed?limit=200').then(r => r.json());
-    (d.articles||[]).forEach(o => {
-      if (!seenIds.has(o.id)) { seenIds.add(o.id); buffer.push(o); }
-    });
-    nextCard();
-  } catch(e) { nextCard(); }
+    var d = await fetch('/api/feed?limit=50').then(function(r) { return r.json(); });
+    var arts = (d.articles || []).reverse();
+    arts.forEach(function(o) { addCard(o, false); });
+  } catch(e) {}
 }
 
 loadInitial();
@@ -571,7 +567,7 @@ def api_stream():
 @app.route("/api/feed")
 def api_feed():
     try:
-        limit = int(request.args.get("limit", 200))
+        limit = int(request.args.get("limit", 50))
         c = sqlite3.connect(DB)
         rows = c.execute("SELECT id,titre,marque,prix,categorie,taille,nb_favoris,url,photo_url FROM articles ORDER BY date_scraping DESC LIMIT ?", (limit,)).fetchall()
         c.close()
