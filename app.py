@@ -20,48 +20,6 @@ CATEGORIES = [
     {"nom": "Enfants",           "id": 1},
 ]
 
-# Cache marques et catégories Vinted
-_vinted_brands = []
-_vinted_cats = []
-_vinted_data_lock = threading.Lock()
-
-def load_vinted_data():
-    """Charge les vraies marques et catégories depuis l'API Vinted."""
-    global _vinted_brands, _vinted_cats
-    try:
-        s = requests.Session()
-        s.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "application/json",
-            "Accept-Language": "fr-FR,fr;q=0.9",
-        })
-        s.get("https://www.vinted.fr", timeout=8)
-
-        # Catégories
-        r = s.get("https://www.vinted.fr/api/v2/catalogs", timeout=8)
-        if r.status_code == 200:
-            data = r.json()
-            cats = []
-            def extract_cats(items, prefix=""):
-                for item in items:
-                    title = item.get("title", "")
-                    full = (prefix + " > " + title) if prefix else title
-                    cats.append({"id": item.get("id"), "title": full, "short": title})
-                    if item.get("catalogs"):
-                        extract_cats(item["catalogs"], full)
-            extract_cats(data.get("catalogs", []))
-            with _vinted_data_lock:
-                _vinted_cats = cats[:80]
-
-        # Marques populaires
-        r2 = s.get("https://www.vinted.fr/api/v2/brands?page=1&per_page=200&sort=popularity", timeout=8)
-        if r2.status_code == 200:
-            brands = r2.json().get("brands", [])
-            with _vinted_data_lock:
-                _vinted_brands = [{"id": b.get("id"), "title": b.get("title", "")} for b in brands if b.get("title")]
-    except Exception as e:
-        pass
-
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
@@ -154,12 +112,9 @@ def scanner_cat(cat):
                 photos = item.get("photos", [])
                 photo_url = photos[0].get("url", "") if photos else ""
                 art = {
-                    "id": iid,
-                    "titre": item.get("title", ""),
-                    "marque": marque,
-                    "prix": prix,
-                    "categorie": cat["nom"],
-                    "taille": item.get("size_title", ""),
+                    "id": iid, "titre": item.get("title", ""),
+                    "marque": marque, "prix": prix,
+                    "categorie": cat["nom"], "taille": item.get("size_title", ""),
                     "nb_favoris": item.get("favourite_count", 0),
                     "url": "https://www.vinted.fr/items/" + iid,
                     "photo_url": photo_url,
@@ -183,538 +138,390 @@ def start_scanner():
         threading.Thread(target=scanner_cat, args=(cat,), daemon=True).start()
         time.sleep(0.3)
 
-HTML = """<!DOCTYPE html>
+@app.route("/")
+def index():
+    return HTML
+
+HTML = """
+<!DOCTYPE html>
 <html lang="fr"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>VintedFeed</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{--acc:#b8ff00;--dark:#0a0a0a;--surface:rgba(20,20,20,.95);--text:#fff;--t2:rgba(255,255,255,.6)}
+:root{--acc:#b8ff00;--dark:#0a0a0a;--surface:#1a1a1a;--text:#fff;--t2:rgba(255,255,255,.55)}
 body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
-
-/* HEADER */
-.header{padding:10px 14px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:10}
-.logo{font-size:16px;font-weight:800;letter-spacing:-.5px}
+.header{padding:10px 14px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.logo{font-size:17px;font-weight:800}
 .logo em{color:var(--acc);font-style:normal}
-.header-right{display:flex;align-items:center;gap:8px}
 .live-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);padding:4px 10px;border-radius:20px;font-size:11px;color:var(--t2)}
-.live-dot{width:6px;height:6px;border-radius:50%;background:#555}
-.live-dot.on{background:var(--acc);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* FILTRES */
-.filters{padding:0 12px 8px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.ldot{width:6px;height:6px;border-radius:50%;background:#444}
+.ldot.on{background:var(--acc);animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+.filters{padding:0 12px 8px;display:flex;gap:6px;overflow-x:auto;flex-shrink:0;scrollbar-width:none;position:relative}
 .filters::-webkit-scrollbar{display:none}
-.filter-pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--t2);padding:5px 12px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer;flex-shrink:0;position:relative;user-select:none;transition:all .15s}
-.filter-pill.active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
-.dd{position:fixed;top:100px;left:12px;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:220px;max-width:calc(100vw - 24px);max-height:60vh;overflow-y:auto;z-index:1000;display:none;box-shadow:0 8px 32px rgba(0,0,0,.9)}
+.fpill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--t2);padding:6px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer;flex-shrink:0;transition:all .15s;user-select:none}
+.fpill.active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
+.fpill.reset{color:rgba(255,80,80,.7)}
+.dd{position:fixed;background:var(--surface);border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:220px;max-width:calc(100vw - 24px);max-height:55vh;overflow-y:auto;z-index:9999;display:none;box-shadow:0 12px 40px rgba(0,0,0,.9)}
 .dd.open{display:block}
 .dd::-webkit-scrollbar{width:3px}
-.dd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
-.dd-item{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13px;cursor:pointer;transition:background .1s}
-.dd-item:hover{background:rgba(255,255,255,.06)}
-.dd-item.on{color:var(--acc)}
-.dd-item input{accent-color:var(--acc);width:15px;height:15px;flex-shrink:0}
-.dd-sep{font-size:10px;color:var(--t2);padding:10px 14px 4px;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.06);margin-top:4px}
-.dd-sep:first-child{border-top:none;margin-top:0}
-.prix-row{display:flex;gap:6px;padding:10px 14px}
-.prix-inp{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;width:80px;outline:none}
+.dd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.ditem{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+.ditem:last-child{border-bottom:none}
+.ditem:hover{background:rgba(255,255,255,.06)}
+.ditem.sel{color:var(--acc);background:rgba(184,255,0,.06)}
+.dcheck{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px}
+.ditem.sel .dcheck{background:var(--acc);border-color:var(--acc);color:#000}
+.dsep{font-size:10px;color:var(--t2);padding:10px 16px 4px;text-transform:uppercase;letter-spacing:.06em;background:rgba(255,255,255,.02)}
+.dsearch{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.06)}
+.dsearch input{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:7px 12px;border-radius:8px;font-size:13px;outline:none}
+.dsearch input:focus{border-color:var(--acc)}
+.prix-row{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.prix-inp{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:7px 10px;border-radius:8px;font-size:13px;width:90px;outline:none}
 .prix-inp:focus{border-color:var(--acc)}
-.dd-preset{padding:8px 14px;font-size:13px;cursor:pointer;color:var(--t2)}
-.dd-preset:hover{color:#fff}
-
-/* FEED VERTICAL */
-.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+.dpreset{padding:9px 16px;font-size:13px;cursor:pointer;color:var(--t2);border-bottom:1px solid rgba(255,255,255,.04)}
+.dpreset:hover{color:#fff;background:rgba(255,255,255,.04)}
+.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:6px 0}
 .feed::-webkit-scrollbar{display:none}
-
-/* CARTE */
-.card{width:min(390px,100%);height:82dvh;scroll-snap-align:start;flex-shrink:0;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;border-radius:16px}
-.card-bg{position:absolute;inset:0;z-index:0}
-.card-img{width:100%;height:100%;object-fit:cover}
-.card-img-ph{width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:64px}
-.card-gradient{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.2) 0%, transparent 30%, transparent 50%, rgba(0,0,0,.85) 100%)}
-
-/* BADGES TOP */
-.card-top{position:absolute;top:14px;left:14px;right:14px;display:flex;align-items:flex-start;justify-content:space-between;z-index:2}
-.badge-new{background:var(--acc);color:#000;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px}
-.badge-ts{background:rgba(0,0,0,.5);color:var(--t2);font-size:11px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(8px)}
-
-/* INFOS BAS */
-.card-info{position:relative;z-index:2;padding:14px 14px 18px}
-.card-prix-row{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
-.card-prix-main{font-size:26px;font-weight:800;line-height:1}
-.card-prix-frais{font-size:12px;color:var(--t2);text-decoration:line-through}
-.card-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.cpill{background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
-.card-titre{font-size:13px;color:rgba(255,255,255,.8);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-
-/* BOUTON ACHAT */
-.card-actions{position:absolute;right:12px;bottom:80px;display:flex;flex-direction:column;gap:6px;z-index:2;align-items:center}
-.btn-flash{width:50px;height:50px;border-radius:50%;background:var(--acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(184,255,0,.4);transition:transform .15s}
-.btn-flash:hover{transform:scale(1.1)}
-.btn-see{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none}
-
-/* BARRE BAS */
-.bottombar{flex-shrink:0;background:rgba(10,10,10,.95);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.06);padding:10px 20px;display:flex;align-items:center;justify-content:space-around;z-index:10}
-.bb-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--t2);font-size:10px;cursor:pointer;padding:0}
-.bb-btn.active{color:var(--acc)}
-.bb-icon{font-size:20px}
-
-/* WAITING */
-.waiting-card{width:min(390px,100%);height:82dvh;scroll-snap-align:start;flex-shrink:0;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
-.waiting-icon{font-size:48px}
+.card{width:min(390px,96vw);height:82dvh;scroll-snap-align:start;flex-shrink:0;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;border-radius:16px;background:#111}
+.cbg{position:absolute;inset:0}
+.cimg{width:100%;height:100%;object-fit:cover;display:block}
+.cgrad{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.15) 0%,transparent 35%,transparent 55%,rgba(0,0,0,.88) 100%)}
+.ctop{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;z-index:2}
+.bnew{background:var(--acc);color:#000;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px}
+.bts{background:rgba(0,0,0,.55);color:rgba(255,255,255,.7);font-size:10px;padding:3px 9px;border-radius:20px;backdrop-filter:blur(6px)}
+.cactions{position:absolute;right:12px;bottom:90px;display:flex;flex-direction:column;gap:8px;z-index:2;align-items:center}
+.bbuy{width:50px;height:50px;border-radius:50%;background:var(--acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(184,255,0,.5);text-decoration:none;transition:transform .15s}
+.bbuy:hover{transform:scale(1.08)}
+.bsee{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:#fff}
+.cinfo{position:relative;z-index:2;padding:12px 14px 16px}
+.cprow{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.cprix{font-size:26px;font-weight:800}
+.cfrais{font-size:11px;color:var(--t2)}
+.cpills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.cpill{background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.ctitre{font-size:12px;color:rgba(255,255,255,.75);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.waiting{width:min(390px,96vw);height:82dvh;scroll-snap-align:start;flex-shrink:0;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--t2);background:#111}
+.wicon{font-size:44px}
+.bottombar{flex-shrink:0;background:rgba(10,10,10,.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.06);padding:10px 20px 14px;display:flex;align-items:center;justify-content:space-around}
+.bbbtn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--t2);font-size:10px;cursor:pointer;padding:0}
+.bbbtn.active{color:var(--acc)}
+.bbico{font-size:20px}
 </style>
 </head><body>
 
 <div class="header">
   <div class="logo">Vinted<em>Feed</em></div>
-  <div class="header-right">
-    <div class="live-pill">
-      <div class="live-dot" id="liveDot"></div>
-      <span id="liveText">Connexion...</span>
-    </div>
-  </div>
+  <div class="live-pill"><div class="ldot" id="ldot"></div><span id="ltxt">Connexion...</span></div>
 </div>
 
-<div class="filters" id="filtersBar">
-  <div class="filter-pill" id="pillCat" onclick="toggleDD('ddCat',this,event)">
-    Catégorie <span id="lblCat"></span>
-    <div class="dd" id="ddCat"><div style="padding:10px;font-size:12px;color:var(--t2)">Chargement...</div></div>
-  </div>
+<div class="filters">
+  <div class="fpill" id="pillCat" onclick="openDD('ddCat',this)">Catégorie <span id="lblCat"></span></div>
+  <div class="fpill" id="pillMarque" onclick="openDD('ddMarque',this)">Marque <span id="lblMarque"></span></div>
+  <div class="fpill" id="pillTaille" onclick="openDD('ddTaille',this)">Taille <span id="lblTaille"></span></div>
+  <div class="fpill" id="pillPrix" onclick="openDD('ddPrix',this)">Prix <span id="lblPrix"></span></div>
+  <div class="fpill reset" onclick="resetAll()">Reset</div>
+</div>
 
-  <div class="filter-pill" id="pillMarque" onclick="toggleDD('ddMarque',this,event)">
-    Marque <span id="lblMarque"></span>
-    <div class="dd" id="ddMarque">
-      <div style="padding:8px 14px"><input type="text" id="searchMarque" placeholder="Rechercher une marque..." oninput="filterBrands()" onclick="event.stopPropagation()" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;outline:none"></div>
-      <div id="brandsList"><div style="padding:10px;font-size:12px;color:var(--t2)">Chargement...</div></div>
-    </div>
-  </div>
+<!-- DROPDOWNS -->
+<div class="dd" id="ddCat"></div>
 
-  <div class="filter-pill" id="pillTaille" onclick="toggleDD('ddTaille',this,event)">
-    Taille <span id="lblTaille"></span>
-    <div class="dd" id="ddTaille">
-      <div class="dd-sep">Vêtements</div>
-      <div class="dd-item" onclick="toggleTaille('XS',this)"><span style="font-size:14px;margin-right:4px"></span>XS</div>
-      <div class="dd-item" onclick="toggleTaille('S',this)"><span style="font-size:14px;margin-right:4px"></span>S</div>
-      <div class="dd-item" onclick="toggleTaille('M',this)"><span style="font-size:14px;margin-right:4px"></span>M</div>
-      <div class="dd-item" onclick="toggleTaille('L',this)"><span style="font-size:14px;margin-right:4px"></span>L</div>
-      <div class="dd-item" onclick="toggleTaille('XL',this)"><span style="font-size:14px;margin-right:4px"></span>XL</div>
-      <div class="dd-item" onclick="toggleTaille('XXL',this)"><span style="font-size:14px;margin-right:4px"></span>XXL</div>
-      <div class="dd-sep">Chaussures</div>
-      <div class="dd-item" onclick="toggleTaille('36',this)"><span style="font-size:14px;margin-right:4px"></span>36</div>
-      <div class="dd-item" onclick="toggleTaille('37',this)"><span style="font-size:14px;margin-right:4px"></span>37</div>
-      <div class="dd-item" onclick="toggleTaille('38',this)"><span style="font-size:14px;margin-right:4px"></span>38</div>
-      <div class="dd-item" onclick="toggleTaille('39',this)"><span style="font-size:14px;margin-right:4px"></span>39</div>
-      <div class="dd-item" onclick="toggleTaille('40',this)"><span style="font-size:14px;margin-right:4px"></span>40</div>
-      <div class="dd-item" onclick="toggleTaille('41',this)"><span style="font-size:14px;margin-right:4px"></span>41</div>
-      <div class="dd-item" onclick="toggleTaille('42',this)"><span style="font-size:14px;margin-right:4px"></span>42</div>
-      <div class="dd-item" onclick="toggleTaille('43',this)"><span style="font-size:14px;margin-right:4px"></span>43</div>
-      <div class="dd-item" onclick="toggleTaille('44',this)"><span style="font-size:14px;margin-right:4px"></span>44</div>
-      <div class="dd-item" onclick="toggleTaille('45',this)"><span style="font-size:14px;margin-right:4px"></span>45</div>
-    </div>
-  </div>
+<div class="dd" id="ddMarque">
+  <div class="dsearch"><input type="text" id="searchB" placeholder="Rechercher une marque..." oninput="filterB()" onclick="event.stopPropagation()"></div>
+  <div id="blist"></div>
+</div>
 
-  <div class="filter-pill" id="pillPrix" onclick="toggleDD('ddPrix',this,event)">
-    Prix <span id="lblPrix"></span>
-    <div class="dd" id="ddPrix" style="min-width:200px">
-      <div class="prix-row">
-        <input class="prix-inp" type="number" id="pMin" placeholder="Min €" oninput="onFilter()">
-        <input class="prix-inp" type="number" id="pMax" placeholder="Max €" oninput="onFilter()">
-      </div>
-      <div class="dd-preset" onclick="setPreset(0,10)">Moins de 10€</div>
-      <div class="dd-preset" onclick="setPreset(0,20)">Moins de 20€</div>
-      <div class="dd-preset" onclick="setPreset(0,50)">Moins de 50€</div>
-      <div class="dd-preset" onclick="setPreset(10,30)">10€ — 30€</div>
-      <div class="dd-preset" onclick="setPreset(20,50)">20€ — 50€</div>
-      <div class="dd-preset" onclick="setPreset(50,999)">Plus de 50€</div>
-    </div>
-  </div>
+<div class="dd" id="ddTaille">
+  <div class="dsep">Vêtements</div>
+  <div class="ditem" onclick="toggleT('XS',this)"><div class="dcheck"></div>XS</div>
+  <div class="ditem" onclick="toggleT('S',this)"><div class="dcheck"></div>S</div>
+  <div class="ditem" onclick="toggleT('M',this)"><div class="dcheck"></div>M</div>
+  <div class="ditem" onclick="toggleT('L',this)"><div class="dcheck"></div>L</div>
+  <div class="ditem" onclick="toggleT('XL',this)"><div class="dcheck"></div>XL</div>
+  <div class="ditem" onclick="toggleT('XXL',this)"><div class="dcheck"></div>XXL</div>
+  <div class="dsep">Chaussures</div>
+  <div class="ditem" onclick="toggleT('36',this)"><div class="dcheck"></div>36</div>
+  <div class="ditem" onclick="toggleT('37',this)"><div class="dcheck"></div>37</div>
+  <div class="ditem" onclick="toggleT('38',this)"><div class="dcheck"></div>38</div>
+  <div class="ditem" onclick="toggleT('39',this)"><div class="dcheck"></div>39</div>
+  <div class="ditem" onclick="toggleT('40',this)"><div class="dcheck"></div>40</div>
+  <div class="ditem" onclick="toggleT('41',this)"><div class="dcheck"></div>41</div>
+  <div class="ditem" onclick="toggleT('42',this)"><div class="dcheck"></div>42</div>
+  <div class="ditem" onclick="toggleT('43',this)"><div class="dcheck"></div>43</div>
+  <div class="ditem" onclick="toggleT('44',this)"><div class="dcheck"></div>44</div>
+  <div class="ditem" onclick="toggleT('45',this)"><div class="dcheck"></div>45</div>
+</div>
 
-  <div class="filter-pill" id="pillReset" onclick="resetAll()" style="color:rgba(255,100,100,.7)">Reset</div>
+<div class="dd" id="ddPrix">
+  <div class="prix-row">
+    <input class="prix-inp" type="number" id="pMin" placeholder="Min €" oninput="applyPrix()">
+    <input class="prix-inp" type="number" id="pMax" placeholder="Max €" oninput="applyPrix()">
+  </div>
+  <div class="dpreset" onclick="setPreset(0,10)">Moins de 10€</div>
+  <div class="dpreset" onclick="setPreset(0,20)">Moins de 20€</div>
+  <div class="dpreset" onclick="setPreset(0,50)">Moins de 50€</div>
+  <div class="dpreset" onclick="setPreset(10,30)">10€ — 30€</div>
+  <div class="dpreset" onclick="setPreset(20,50)">20€ — 50€</div>
+  <div class="dpreset" onclick="setPreset(50,999)">Plus de 50€</div>
 </div>
 
 <div class="feed" id="feed">
-  <div class="waiting-card">
-    <div class="waiting-icon">⚡</div>
-    <div>Connexion au feed...</div>
-  </div>
+  <div class="waiting"><div class="wicon">⚡</div><div>Connexion...</div></div>
 </div>
 
 <div class="bottombar">
-  <button class="bb-btn active">
-    <span class="bb-icon">⚡</span>
-    <span>Feed</span>
-  </button>
-  <button class="bb-btn" onclick="scrollToTop()">
-    <span class="bb-icon">🔝</span>
-    <span>Top</span>
-  </button>
-  <button class="bb-btn" id="notifBtn" onclick="toggleNotif()">
-    <span class="bb-icon">🔔</span>
-    <span>Alertes</span>
-  </button>
+  <button class="bbbtn active"><span class="bbico">⚡</span><span>Feed</span></button>
+  <button class="bbbtn" onclick="scrollTop()"><span class="bbico">🔝</span><span>Top</span></button>
+  <button class="bbbtn" id="notifBtn" onclick="toggleNotif()"><span class="bbico">🔔</span><span>Alertes</span></button>
 </div>
 
 <script>
-let seenIds = new Set();
-let renderedIds = new Set();
-let notifOn = false;
-let sseSource = null;
-let filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
+var CATS = ["Vetements femme","Vetements homme","Chaussures femme","Chaussures homme","Sacs","Accessoires","Sport","Electronique","Maison","Jeux video","Livres","Enfants"];
+var CATS_LABEL = {"Vetements femme":"Vêtements femme","Vetements homme":"Vêtements homme","Chaussures femme":"Chaussures femme","Chaussures homme":"Chaussures homme","Sacs":"Sacs","Accessoires":"Accessoires","Sport":"Sport","Electronique":"Électronique","Maison":"Maison","Jeux video":"Jeux vidéo","Livres":"Livres","Enfants":"Enfants"};
+var BRANDS = ["Nike","Adidas","Jordan","New Balance","Puma","Converse","Vans","Reebok","Asics","Saucony","Supreme","Carhartt","Stone Island","Palace","Stussy","Off-White","Kith","Zara","H&M","Mango","Pull&Bear","Bershka","Uniqlo","Cos","Ralph Lauren","Tommy Hilfiger","Lacoste","Levi's","Calvin Klein","Guess","The North Face","Patagonia","Arc'teryx","Salomon","Columbia","Napapijri","Canada Goose","Louis Vuitton","Gucci","Prada","Balenciaga","Dior","Chanel","Hermes","Burberry","Apple","Samsung","Sony","Nintendo","Bose","JBL","Under Armour","Lululemon","Decathlon","Vintage","Y2K"];
 
-// ── DROPDOWN ─────────────────────────────────────────────────────────────────
-function toggleDD(id, pill, e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const dd = document.getElementById(id);
-  const wasOpen = dd.classList.contains('open');
-  document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
-  if (!wasOpen) {
-    const rect = pill.getBoundingClientRect();
+var selCats = [], selBrands = [], selTailles = [], pMin = 0, pMax = 0;
+var renderedIds = new Set();
+var notifOn = false;
+var sse = null;
+var currentDD = null;
+
+// Init catégories
+(function(){
+  var dd = document.getElementById('ddCat');
+  dd.innerHTML = CATS.map(function(c){
+    return '<div class="ditem" data-val="'+c+'" onclick="toggleC(\\''+c+'\\',this)"><div class="dcheck"></div>'+CATS_LABEL[c]+'</div>';
+  }).join('');
+})();
+
+// Init marques
+var allBrands = BRANDS.slice();
+renderBrands(allBrands);
+
+function renderBrands(list){
+  var el = document.getElementById('blist');
+  el.innerHTML = list.map(function(b){
+    var sel = selBrands.indexOf(b) !== -1;
+    return '<div class="ditem'+(sel?' sel':'')+'" data-val="'+b+'" onclick="toggleB(\\''+b.replace(/'/g,"\\\\'")+'\\',this)"><div class="dcheck">'+(sel?'✓':'')+'</div>'+b+'</div>';
+  }).join('');
+}
+
+function filterB(){
+  var q = document.getElementById('searchB').value.toLowerCase();
+  renderBrands(q ? allBrands.filter(function(b){return b.toLowerCase().indexOf(q)!==-1;}) : allBrands);
+}
+
+// Dropdowns
+function openDD(id, pill){
+  event.stopPropagation();
+  var dd = document.getElementById(id);
+  var wasOpen = dd.classList.contains('open');
+  closeAllDD();
+  if(!wasOpen){
+    var rect = pill.getBoundingClientRect();
     dd.style.top = (rect.bottom + 6) + 'px';
-    dd.style.left = Math.max(12, rect.left) + 'px';
+    dd.style.left = Math.max(8, rect.left) + 'px';
     dd.classList.add('open');
+    currentDD = dd;
   }
 }
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.filter-pill')) {
-    document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
-  }
-});
-document.addEventListener('touchstart', function(e) {
-  if (!e.target.closest('.filter-pill')) {
-    document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
-  }
-});
+function closeAllDD(){
+  document.querySelectorAll('.dd').forEach(function(d){d.classList.remove('open');});
+  currentDD = null;
+}
+document.addEventListener('click', closeAllDD);
 
-// ── FILTRES ───────────────────────────────────────────────────────────────────
-function onFilter() {
-  filters.pMin = parseFloat(document.getElementById('pMin').value) || 0;
-  filters.pMax = parseFloat(document.getElementById('pMax').value) || 0;
-  updatePills();
-  reloadFeedWithFilters();
+// Toggle catégorie
+function toggleC(val, el){
+  event.stopPropagation();
+  var idx = selCats.indexOf(val);
+  if(idx===-1){ selCats.push(val); el.classList.add('sel'); el.querySelector('.dcheck').textContent='✓'; }
+  else { selCats.splice(idx,1); el.classList.remove('sel'); el.querySelector('.dcheck').textContent=''; }
+  updLabel('lblCat', selCats.length, 'pillCat');
+  reload();
 }
 
-function updatePills() {
-  document.getElementById('pillCat').classList.toggle('active', filters.cats.length > 0);
-  document.getElementById('pillMarque').classList.toggle('active', filters.marques.length > 0);
-  document.getElementById('pillTaille').classList.toggle('active', filters.tailles.length > 0);
-  document.getElementById('pillPrix').classList.toggle('active', !!(filters.pMin || filters.pMax));
+// Toggle marque
+function toggleB(val, el){
+  event.stopPropagation();
+  var idx = selBrands.indexOf(val);
+  if(idx===-1){ selBrands.push(val); el.classList.add('sel'); el.querySelector('.dcheck').textContent='✓'; }
+  else { selBrands.splice(idx,1); el.classList.remove('sel'); el.querySelector('.dcheck').textContent=''; }
+  updLabel('lblMarque', selBrands.length, 'pillMarque');
+  reload();
 }
 
-function setPreset(mn, mx) {
-  document.getElementById('pMin').value = mn || '';
-  document.getElementById('pMax').value = mx === 999 ? '' : mx;
-  filters.pMin = mn; filters.pMax = mx;
-  updatePills();
-  reloadFeedWithFilters();
+// Toggle taille
+function toggleT(val, el){
+  event.stopPropagation();
+  var idx = selTailles.indexOf(val);
+  if(idx===-1){ selTailles.push(val); el.classList.add('sel'); el.querySelector('.dcheck').textContent='✓'; }
+  else { selTailles.splice(idx,1); el.classList.remove('sel'); el.querySelector('.dcheck').textContent=''; }
+  updLabel('lblTaille', selTailles.length, 'pillTaille');
+  reload();
 }
 
-function resetAll() {
-  document.getElementById('pMin').value = '';
-  document.getElementById('pMax').value = '';
-  if (document.getElementById('searchMarque')) document.getElementById('searchMarque').value = '';
-  selectedBrands = []; selectedCats = [];
-  filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
-  document.querySelectorAll('.dd-item.on').forEach(el => {
-    el.classList.remove('on');
-    el.style.color = ''; el.style.background = '';
-    const sp = el.querySelector('span'); if(sp) sp.textContent = '';
+// Prix
+function applyPrix(){
+  pMin = parseFloat(document.getElementById('pMin').value)||0;
+  pMax = parseFloat(document.getElementById('pMax').value)||0;
+  var lbl = (pMin||pMax) ? (pMin?pMin+'€':'')+(pMax?'-'+pMax+'€':'') : '';
+  document.getElementById('lblPrix').textContent = lbl ? '('+lbl+')' : '';
+  document.getElementById('pillPrix').classList.toggle('active', !!(pMin||pMax));
+  reload();
+}
+function setPreset(mn,mx){
+  event.stopPropagation();
+  document.getElementById('pMin').value = mn||'';
+  document.getElementById('pMax').value = mx===999?'':mx;
+  pMin=mn; pMax=mx;
+  var lbl = mn+'€-'+mx+'€';
+  document.getElementById('lblPrix').textContent='('+lbl+')';
+  document.getElementById('pillPrix').classList.add('active');
+  reload();
+}
+
+function updLabel(lblId, count, pillId){
+  document.getElementById(lblId).textContent = count ? '('+count+')' : '';
+  document.getElementById(pillId).classList.toggle('active', count>0);
+}
+
+function resetAll(){
+  selCats=[]; selBrands=[]; selTailles=[]; pMin=0; pMax=0;
+  document.getElementById('pMin').value='';
+  document.getElementById('pMax').value='';
+  document.getElementById('searchB').value='';
+  document.querySelectorAll('.ditem.sel').forEach(function(el){
+    el.classList.remove('sel'); el.querySelector('.dcheck').textContent='';
   });
-  document.querySelectorAll('.dd input[type=checkbox]').forEach(cb => cb.checked = false);
-  ['lblCat','lblMarque','lblTaille','lblPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
-  ['pillCat','pillMarque','pillTaille','pillPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
-  initStaticFilters();
-}
-
-function matchFilters(o) {
-  if (filters.cats.length && !filters.cats.includes(o.categorie)) return false;
-  if (filters.marques.length && !filters.marques.some(m => (o.marque||'').toLowerCase().includes(m.toLowerCase()))) return false;
-  if (filters.tailles.length && !filters.tailles.some(t => (o.taille||'').includes(t))) return false;
-  if (filters.pMin && o.prix < filters.pMin) return false;
-  if (filters.pMax && o.prix > filters.pMax) return false;
-  return true;
-}
-
-// ── CARTE ─────────────────────────────────────────────────────────────────────
-function makeCard(o, isNew) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.dataset.id = o.id;
-
-  const fraisIncl = Math.round(o.prix * 1.05 * 100) / 100;
-  const ts = isNew ? 'Il y a 1 seconde' : 'Recent';
-
-  let imgHtml = '';
-  if (o.photo_url) {
-    imgHtml = '<img class="card-img" src="' + o.photo_url + '" loading="lazy">';
-  } else {
-    imgHtml = '<div class="card-img-ph">🏷️</div>';
-  }
-
-  let pills = '';
-  if (o.marque) pills += '<span class="cpill">' + o.marque + '</span>';
-  if (o.taille) pills += '<span class="cpill">' + o.taille + '</span>';
-  if (o.categorie) pills += '<span class="cpill">' + o.categorie + '</span>';
-
-  card.innerHTML =
-    '<div class="card-bg">' + imgHtml + '<div class="card-gradient"></div></div>' +
-    '<div class="card-top">' +
-      (isNew ? '<span class="badge-new">NOUVEAU</span>' : '<span></span>') +
-      '<span class="badge-ts">' + ts + '</span>' +
-    '</div>' +
-    '<div class="card-actions">' +
-      '<a href="' + o.url + '" target="_blank" class="btn-flash" title="Acheter">⚡</a>' +
-      '<a href="' + o.url + '" target="_blank" class="btn-see" title="Voir">↗</a>' +
-    '</div>' +
-    '<div class="card-info">' +
-      '<div class="card-prix-row">' +
-        '<span class="card-prix-main">' + o.prix + '€</span>' +
-        '<span class="card-prix-frais">' + fraisIncl + '€ frais incl.</span>' +
-      '</div>' +
-      '<div class="card-pills">' + pills + '</div>' +
-      '<div class="card-titre">' + (o.titre || '') + '</div>' +
-    '</div>';
-
-  return card;
-}
-
-function addCard(o, isNew) {
-  if (renderedIds.has(o.id)) return;
-  renderedIds.add(o.id);
-  if (!matchFilters(o)) return;
-
-  const feed = document.getElementById('feed');
-  const waiting = feed.querySelector('.waiting-card');
-  if (waiting) feed.innerHTML = '';
-
-  const card = makeCard(o, isNew);
-
-  if (isNew) {
-    feed.prepend(card);
-  } else {
-    feed.appendChild(card);
-  }
-
-  // Notification
-  if (notifOn && isNew && Notification.permission === 'granted') {
-    const n = new Notification((o.marque || o.categorie) + ' — ' + o.prix + '€', {
-      body: o.titre,
-      tag: o.id,
-    });
-    n.onclick = function() { window.open(o.url, '_blank'); n.close(); };
-    setTimeout(function() { n.close(); }, 6000);
-  }
-
-  // Limiter à 200 cartes
-  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
-}
-
-// ── SSE ───────────────────────────────────────────────────────────────────────
-function connectSSE() {
-  if (sseSource) sseSource.close();
-  sseSource = new EventSource('/api/stream');
-  sseSource.onopen = function() {
-    document.getElementById('liveDot').classList.add('on');
-    document.getElementById('liveText').textContent = 'En direct';
-  };
-  sseSource.onmessage = function(e) {
-    if (!e.data || e.data === '{}') return;
-    try {
-      var o = JSON.parse(e.data);
-      if (!o.id) return;
-      // Ne pas bloquer les nouveaux articles SSE
-      if (renderedIds.has(o.id)) return;
-      seenIds.add(o.id);
-      addCard(o, true);
-    } catch(err) {}
-  };
-  sseSource.onerror = function() {
-    document.getElementById('liveDot').classList.remove('on');
-    document.getElementById('liveText').textContent = 'Reconnexion...';
-    sseSource.close();
-    setTimeout(connectSSE, 3000);
-  };
-}
-
-// ── NOTIFS ────────────────────────────────────────────────────────────────────
-function toggleNotif() {
-  if (!('Notification' in window)) return;
-  Notification.requestPermission().then(function(p) {
-    if (p === 'granted') {
-      notifOn = !notifOn;
-      var btn = document.getElementById('notifBtn');
-      btn.classList.toggle('active', notifOn);
-    }
-  });
-}
-
-function scrollToTop() {
-  document.getElementById('feed').scrollTo({top: 0, behavior: 'smooth'});
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-async function loadInitial() {
-  try {
-    var d = await fetch('/api/feed?limit=50').then(function(r) { return r.json(); });
-    var arts = (d.articles || []).reverse();
-    arts.forEach(function(o) { addCard(o, false); });
-  } catch(e) {}
-}
-
-// Charger les vraies marques et catégories Vinted
-let allBrands = [];
-let selectedBrands = [];
-let selectedCats = [];
-
-// Données statiques immédiates
-const CATS_STATIC = [
-  "Vetements femme","Vetements homme","Chaussures femme","Chaussures homme",
-  "Sacs","Accessoires","Sport","Electronique","Maison","Jeux video","Livres","Enfants"
-];
-const BRANDS_STATIC = [
-  "Nike","Adidas","Jordan","New Balance","Puma","Converse","Vans","Reebok","Asics","Saucony",
-  "Supreme","Carhartt","Stone Island","Palace","Stussy","Off-White","A Bathing Ape","Kith",
-  "Zara","H&M","Mango","Pull&Bear","Bershka","Uniqlo","Cos","& Other Stories",
-  "Ralph Lauren","Tommy Hilfiger","Lacoste","Levi's","Wrangler","Lee","Calvin Klein","Guess",
-  "The North Face","Patagonia","Arc'teryx","Salomon","Columbia","Napapijri","Canada Goose",
-  "Louis Vuitton","Gucci","Prada","Balenciaga","Dior","Chanel","Hermes","Givenchy","Burberry",
-  "Apple","Samsung","Sony","Nintendo","Microsoft","Bose","JBL","Beats",
-  "Decathlon","Nike Training","Adidas Sport","Under Armour","Lululemon",
-  "Vintage","Y2K","Retro"
-];
-
-function initStaticFilters() {
-  // Catégories statiques
-  const ddCat = document.getElementById('ddCat');
-  ddCat.innerHTML = CATS_STATIC.map(c => {
-    const label = c.replace('Vetements','Vêtements').replace('Electronique','Électronique').replace('video','vidéo');
-    return '<div class="dd-item" onclick="toggleCat('' + c + '',this)">' +
-      '<span style="font-size:14px;margin-right:4px"></span>' + label + '</div>';
-  }).join('');
-
-  // Marques statiques
-  allBrands = BRANDS_STATIC.map(b => ({title: b}));
+  ['lblCat','lblMarque','lblTaille','lblPrix'].forEach(function(id){document.getElementById(id).textContent='';});
+  ['pillCat','pillMarque','pillTaille','pillPrix'].forEach(function(id){document.getElementById(id).classList.remove('active');});
   renderBrands(allBrands);
+  reload();
 }
 
-async function loadVintedData() {
-  // Charger d'abord les données statiques immédiatement
-  initStaticFilters();
-
-  // Puis essayer de charger les vraies données en arrière-plan
-  try {
-    const db = await fetch('/api/brands').then(r => r.json());
-    if (db.brands && db.brands.length > 0) {
-      allBrands = db.brands;
-      renderBrands(allBrands);
-    }
-  } catch(e) {}
+// Feed
+function buildUrl(){
+  var url = '/api/feed?limit=80';
+  selCats.forEach(function(c){url+='&cat='+encodeURIComponent(c);});
+  selBrands.forEach(function(b){url+='&marque='+encodeURIComponent(b);});
+  selTailles.forEach(function(t){url+='&taille='+encodeURIComponent(t);});
+  if(pMin) url+='&pmin='+pMin;
+  if(pMax) url+='&pmax='+pMax;
+  return url;
 }
 
-function renderBrands(brands) {
-  const list = document.getElementById('brandsList');
-  if (!brands.length) { list.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--t2)">Aucune marque trouvée</div>'; return; }
-  list.innerHTML = brands.slice(0, 150).map(b => {
-    const sel = selectedBrands.includes(b.title);
-    return '<div class="dd-item' + (sel ? ' on' : '') + '" onclick="toggleBrand('' + b.title.replace(/'/g,"\'") + '',this)" style="' + (sel ? 'color:var(--acc);background:rgba(184,255,0,.08)' : '') + '">' +
-      '<span style="font-size:14px;margin-right:4px">' + (sel ? '✓' : '') + '</span>' + b.title + '</div>';
-  }).join('');
+function makeCard(o, isNew){
+  var frais = Math.round(o.prix*1.05*100)/100;
+  var img = o.photo_url ? '<img class="cimg" src="'+o.photo_url+'" loading="lazy">' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px">🏷️</div>';
+  var pills = '';
+  if(o.marque) pills += '<span class="cpill">'+o.marque+'</span>';
+  if(o.taille) pills += '<span class="cpill">'+o.taille+'</span>';
+  if(o.categorie) pills += '<span class="cpill">'+(CATS_LABEL[o.categorie]||o.categorie)+'</span>';
+  var d = document.createElement('div');
+  d.className = 'card';
+  d.innerHTML =
+    '<div class="cbg">'+img+'<div class="cgrad"></div></div>'+
+    '<div class="ctop">'+
+      (isNew?'<span class="bnew">NOUVEAU</span>':'<span></span>')+
+      '<span class="bts">'+o.prix+'€</span>'+
+    '</div>'+
+    '<div class="cactions">'+
+      '<a href="'+o.url+'" target="_blank" class="bbuy">⚡</a>'+
+      '<a href="'+o.url+'" target="_blank" class="bsee">↗</a>'+
+    '</div>'+
+    '<div class="cinfo">'+
+      '<div class="cprow"><span class="cprix">'+o.prix+'€</span><span class="cfrais">'+frais+'€ frais incl.</span></div>'+
+      '<div class="cpills">'+pills+'</div>'+
+      '<div class="ctitre">'+(o.titre||'')+'</div>'+
+    '</div>';
+  return d;
 }
 
-function toggleBrand(title, el) {
-  event.stopPropagation();
-  const idx = selectedBrands.indexOf(title);
-  if (idx === -1) {
-    selectedBrands.push(title);
-    el.classList.add('on');
-    el.style.color = 'var(--acc)';
-    el.style.background = 'rgba(184,255,0,.08)';
-    el.querySelector('span').textContent = '✓';
-  } else {
-    selectedBrands.splice(idx, 1);
-    el.classList.remove('on');
-    el.style.color = '';
-    el.style.background = '';
-    el.querySelector('span').textContent = '';
+function addCard(o, isNew){
+  if(renderedIds.has(o.id)) return;
+  renderedIds.add(o.id);
+  var feed = document.getElementById('feed');
+  var w = feed.querySelector('.waiting');
+  if(w) feed.innerHTML='';
+  var card = makeCard(o, isNew);
+  if(isNew) feed.prepend(card); else feed.appendChild(card);
+  while(feed.children.length>200) feed.removeChild(feed.lastChild);
+  if(notifOn && isNew && Notification.permission==='granted'){
+    var n = new Notification((o.marque||o.categorie||'Vinted')+' — '+o.prix+'€',{body:o.titre,tag:o.id});
+    n.onclick=function(){window.open(o.url,'_blank');n.close();};
+    setTimeout(function(){n.close();},6000);
   }
-  filters.marques = selectedBrands.slice();
-  document.getElementById('lblMarque').textContent = selectedBrands.length ? '(' + selectedBrands.length + ')' : '';
-  document.getElementById('pillMarque').classList.toggle('active', selectedBrands.length > 0);
-  reloadFeedWithFilters();
 }
 
-function filterBrands() {
-  const q = document.getElementById('searchMarque').value.toLowerCase();
-  const filtered = q ? allBrands.filter(b => b.title.toLowerCase().includes(q)) : allBrands;
-  renderBrands(filtered);
-}
-
-function reloadFeedWithFilters() {
-  // Vider le feed visuel et recharger depuis la base
+function reload(){
   renderedIds.clear();
-  const feed = document.getElementById('feed');
-  feed.innerHTML = '<div class="waiting-card"><div class="waiting-icon">🔍</div><div>Filtrage...</div></div>';
-  setTimeout(loadInitial, 100);
+  var feed = document.getElementById('feed');
+  feed.innerHTML='<div class="waiting"><div class="wicon">🔍</div><div>Filtrage...</div></div>';
+  setTimeout(loadInitial, 50);
 }
 
-function toggleCat(val, el) {
-  event.stopPropagation();
-  const idx = selectedCats.indexOf(val);
-  if (idx === -1) {
-    selectedCats.push(val);
-    el.classList.add('on');
-    el.style.color = 'var(--acc)';
-    el.style.background = 'rgba(184,255,0,.08)';
-    el.querySelector('span').textContent = '✓';
-  } else {
-    selectedCats.splice(idx, 1);
-    el.classList.remove('on');
-    el.style.color = '';
-    el.style.background = '';
-    el.querySelector('span').textContent = '';
-  }
-  filters.cats = selectedCats.slice();
-  document.getElementById('lblCat').textContent = selectedCats.length ? '(' + selectedCats.length + ')' : '';
-  document.getElementById('pillCat').classList.toggle('active', selectedCats.length > 0);
-  reloadFeedWithFilters();
+async function loadInitial(){
+  try{
+    var d = await fetch(buildUrl()).then(function(r){return r.json();});
+    var arts = (d.articles||[]).reverse();
+    if(!arts.length){
+      document.getElementById('feed').innerHTML='<div class="waiting"><div class="wicon">🕵️</div><div>Aucun article pour ces filtres</div></div>';
+      return;
+    }
+    arts.forEach(function(o){addCard(o,false);});
+  }catch(e){}
 }
 
-function onFilterCat() {}
-
-function onFilterMarque() {}
-
-function toggleTaille(val, el) {
-  event.stopPropagation();
-  const idx = filters.tailles.indexOf(val);
-  if (idx === -1) {
-    filters.tailles.push(val);
-    el.classList.add('on');
-    el.style.color = 'var(--acc)';
-    el.style.background = 'rgba(184,255,0,.08)';
-    el.querySelector('span').textContent = '✓';
-  } else {
-    filters.tailles.splice(idx, 1);
-    el.classList.remove('on');
-    el.style.color = '';
-    el.style.background = '';
-    el.querySelector('span').textContent = '';
-  }
-  document.getElementById('lblTaille').textContent = filters.tailles.length ? '(' + filters.tailles.length + ')' : '';
-  document.getElementById('pillTaille').classList.toggle('active', filters.tailles.length > 0);
-  reloadFeedWithFilters();
+function connectSSE(){
+  if(sse) sse.close();
+  sse = new EventSource('/api/stream');
+  sse.onopen=function(){
+    document.getElementById('ldot').classList.add('on');
+    document.getElementById('ltxt').textContent='En direct';
+  };
+  sse.onmessage=function(e){
+    if(!e.data||e.data==='{}') return;
+    try{
+      var o=JSON.parse(e.data);
+      if(!o.id) return;
+      // Vérifier filtres côté client
+      if(selCats.length && selCats.indexOf(o.categorie)===-1) return;
+      if(selBrands.length && !selBrands.some(function(b){return (o.marque||'').toLowerCase().indexOf(b.toLowerCase())!==-1;})) return;
+      if(selTailles.length && !selTailles.some(function(t){return (o.taille||'').indexOf(t)!==-1;})) return;
+      if(pMin && o.prix<pMin) return;
+      if(pMax && o.prix>pMax) return;
+      addCard(o,true);
+    }catch(err){}
+  };
+  sse.onerror=function(){
+    document.getElementById('ldot').classList.remove('on');
+    document.getElementById('ltxt').textContent='Reconnexion...';
+    sse.close();
+    setTimeout(connectSSE,3000);
+  };
 }
 
-loadVintedData();
+function toggleNotif(){
+  if(!('Notification' in window)) return;
+  Notification.requestPermission().then(function(p){
+    if(p==='granted'){
+      notifOn=!notifOn;
+      document.getElementById('notifBtn').classList.toggle('active',notifOn);
+    }
+  });
+}
+
+function scrollTop(){document.getElementById('feed').scrollTo({top:0,behavior:'smooth'});}
+
 loadInitial();
 connectSSE();
 </script>
-</body></html>"""
+</body></html>
 
-@app.route("/")
-def index():
-    return render_template_string(HTML)
+"""
 
 @app.route("/api/stream")
 def api_stream():
@@ -729,22 +536,34 @@ def api_stream():
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-@app.route("/api/brands")
-def api_brands():
-    with _vinted_data_lock:
-        return jsonify({"brands": _vinted_brands})
-
-@app.route("/api/cats")
-def api_cats():
-    with _vinted_data_lock:
-        return jsonify({"cats": _vinted_cats})
-
 @app.route("/api/feed")
 def api_feed():
     try:
         limit = int(request.args.get("limit", 50))
+        cats = request.args.getlist("cat")
+        marques = request.args.getlist("marque")
+        tailles = request.args.getlist("taille")
+        prix_min = request.args.get("pmin", "")
+        prix_max = request.args.get("pmax", "")
+
+        where = "WHERE 1=1"
+        params = []
+        if cats:
+            where += " AND categorie IN (" + ",".join("?"*len(cats)) + ")"
+            params.extend(cats)
+        if marques:
+            where += " AND (" + " OR ".join(["LOWER(marque) LIKE LOWER(?)"]*len(marques)) + ")"
+            params.extend(["%" + m + "%" for m in marques])
+        if tailles:
+            where += " AND (" + " OR ".join(["taille LIKE ?"]*len(tailles)) + ")"
+            params.extend(["%" + t + "%" for t in tailles])
+        if prix_min:
+            where += " AND prix >= ?"; params.append(float(prix_min))
+        if prix_max:
+            where += " AND prix <= ?"; params.append(float(prix_max))
+
         c = sqlite3.connect(DB)
-        rows = c.execute("SELECT id,titre,marque,prix,categorie,taille,nb_favoris,url,photo_url FROM articles ORDER BY date_scraping DESC LIMIT ?", (limit,)).fetchall()
+        rows = c.execute("SELECT id,titre,marque,prix,categorie,taille,nb_favoris,url,photo_url FROM articles " + where + " ORDER BY date_scraping DESC LIMIT ?", params + [limit]).fetchall()
         c.close()
         arts = [{"id":r[0],"titre":r[1],"marque":r[2],"prix":r[3],"categorie":r[4],"taille":r[5],"nb_favoris":r[6],"url":r[7],"photo_url":r[8]} for r in rows]
         return jsonify({"articles": arts})
@@ -752,7 +571,6 @@ def api_feed():
         return jsonify({"error": str(e)}), 500
 
 init_db()
-threading.Thread(target=load_vinted_data, daemon=True).start()
 threading.Thread(target=start_scanner, daemon=True).start()
 
 if __name__ == "__main__":
