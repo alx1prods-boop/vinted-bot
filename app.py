@@ -5,9 +5,6 @@ from flask import Flask, jsonify, render_template_string, Response, stream_with_
 app = Flask(__name__)
 DB = os.path.join("/tmp", "vinted_feed.db")
 
-TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-
 CATEGORIES = [
     {"nom": "Vêtements femme",   "id": 1904},
     {"nom": "Vêtements homme",   "id": 4},
@@ -16,9 +13,9 @@ CATEGORIES = [
     {"nom": "Sacs",              "id": 3},
     {"nom": "Accessoires",       "id": 2},
     {"nom": "Sport",             "id": 77},
-    {"nom": "Électronique",      "id": 2225},
+    {"nom": "Electronique",      "id": 2225},
     {"nom": "Maison",            "id": 1560},
-    {"nom": "Jeux vidéo",        "id": 1194},
+    {"nom": "Jeux video",        "id": 1194},
     {"nom": "Livres",            "id": 1193},
     {"nom": "Enfants",           "id": 1},
 ]
@@ -31,7 +28,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
 ]
 
-# Queue SSE
 feed_queue = queue.Queue(maxsize=500)
 _ids_vus = set()
 _ids_lock = threading.Lock()
@@ -112,26 +108,18 @@ def scanner_cat(cat):
                 with _ids_lock:
                     if iid in _ids_vus: continue
                     _ids_vus.add(iid)
-
                 marque = item.get("brand_title", "") or item.get("brand", "")
-                prix   = float(item.get("price", {}).get("amount", 0) if isinstance(item.get("price"), dict) else item.get("price", 0))
+                prix = float(item.get("price", {}).get("amount", 0) if isinstance(item.get("price"), dict) else item.get("price", 0))
                 photos = item.get("photos", [])
-                photo_url = ""
-                if photos:
-                    photo_url = photos[0].get("url", "") or photos[0].get("full_size_url", "")
-
+                photo_url = photos[0].get("url", "") if photos else ""
                 art = {
-                    "id":            iid,
-                    "titre":         item.get("title", ""),
-                    "marque":        marque,
-                    "prix":          prix,
-                    "categorie":     cat["nom"],
-                    "taille":        item.get("size_title", ""),
-                    "nb_favoris":    item.get("favourite_count", 0),
-                    "url":           f"https://www.vinted.fr/items/{iid}",
-                    "photo_url":     photo_url,
+                    "id": iid, "titre": item.get("title", ""),
+                    "marque": marque, "prix": prix,
+                    "categorie": cat["nom"], "taille": item.get("size_title", ""),
+                    "nb_favoris": item.get("favourite_count", 0),
+                    "url": f"https://www.vinted.fr/items/{iid}",
+                    "photo_url": photo_url,
                     "date_scraping": datetime.now().isoformat(),
-                    "ts":            int(datetime.now().timestamp()),
                 }
                 sauvegarder(art)
                 try: feed_queue.put_nowait(art)
@@ -140,8 +128,7 @@ def scanner_cat(cat):
                     except: pass
                     try: feed_queue.put_nowait(art)
                     except: pass
-
-        except Exception as e:
+        except:
             session = get_session()
             time.sleep(random.uniform(3, 8))
         time.sleep(random.uniform(1.5, 3))
@@ -161,65 +148,65 @@ HTML = r"""<!DOCTYPE html>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c26;--border:#252530;
-  --text:#f0f0f8;--text2:#7070a0;--accent:#7c6af7;--green:#00d68f;
-  --red:#ff4d6d;--yellow:#ffd166;
+  --text:#f0f0f8;--text2:#7070a0;--accent:#7c6af7;--green:#00d68f;--red:#ff4d6d;
 }
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-/* HEADER */
-.header{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
-.logo{font-size:18px;font-weight:700;letter-spacing:-.5px}
-.logo em{color:var(--accent);font-style:normal}
-.live-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .3s}
+.header{padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{font-size:17px;font-weight:700}.logo em{color:var(--accent);font-style:normal}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0}
 .live-dot.on{background:var(--green);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.counter{font-size:12px;color:var(--text2);margin-left:auto}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.counter{font-size:12px;color:var(--text2)}
+.speed-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.speed-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer}
+.speed-btn.active{border-color:var(--accent);color:var(--accent)}
 
-/* FILTRES */
-.filters{padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
-.filter-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:20px;font-size:12px;cursor:pointer;outline:none}
-.filter-select:focus{border-color:var(--accent)}
-.btn-reset{background:transparent;border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer}
-.btn-reset:hover{border-color:var(--accent);color:var(--accent)}
-.btn-notif{background:transparent;border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;margin-left:auto}
-.btn-notif.on{border-color:var(--green);color:var(--green)}
+.filters{padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.filter-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:20px;font-size:12px;cursor:pointer;outline:none}
+.btn-reset{background:transparent;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:20px;font-size:12px;cursor:pointer}
 
-/* FEED */
-.feed{flex:1;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;align-content:start}
-.feed::-webkit-scrollbar{width:4px}
-.feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;padding:20px}
 
-/* CARTE */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;animation:slideIn .3s ease;cursor:pointer;transition:transform .15s,border-color .15s}
-.card:hover{transform:translateY(-2px);border-color:var(--accent)}
-.card.new{border-color:var(--green)}
-@keyframes slideIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
-.card-img{width:100%;height:160px;object-fit:cover;display:block;background:var(--surface2)}
-.card-img-placeholder{width:100%;height:160px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2)}
-.card-badges{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;pointer-events:none}
-.card-img-wrap{position:relative}
-.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
-.badge-new{background:var(--green);color:#000}
-.badge-eco{color:#000}
-.card-body{padding:10px;flex:1;display:flex;flex-direction:column;gap:3px}
-.card-cat{font-size:10px;color:var(--text2)}
-.card-titre{font-size:12px;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
-.card-marque{font-size:11px;font-weight:600;color:var(--accent)}
-.card-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
-.card-prix{font-size:16px;font-weight:700}
-.card-taille{font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:20px}
-.card-fav{font-size:11px;color:var(--text2)}
-.card-btn{display:block;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px;border-radius:8px;text-decoration:none;text-align:center;transition:opacity .15s}
-.card-btn:hover{opacity:.85}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  width:100%;max-width:380px;overflow:hidden;
+  animation:popIn .35s cubic-bezier(.34,1.56,.64,1);
+  position:relative;
+}
+@keyframes popIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 
-/* EMPTY */
-.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text2)}
-.empty-icon{font-size:48px;margin-bottom:12px}
-.empty-text{font-size:14px}
+.card-img-wrap{position:relative;width:100%;height:320px;background:var(--surface2)}
+.card-img{width:100%;height:100%;object-fit:cover;display:block}
+.card-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--border)}
+.badge-new{position:absolute;top:12px;left:12px;font-size:11px;font-weight:700;background:var(--green);color:#000;padding:4px 10px;border-radius:20px}
+.badge-cat{position:absolute;top:12px;right:12px;font-size:11px;background:rgba(0,0,0,.6);color:#fff;padding:4px 10px;border-radius:20px}
 
-/* SCROLL TO TOP */
-.scroll-top{position:fixed;bottom:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:18px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(124,106,247,.4)}
-.scroll-top.show{display:flex}
+.card-body{padding:16px}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.card-titre{font-size:15px;font-weight:600;line-height:1.3;flex:1}
+.card-prix-big{font-size:24px;font-weight:700;color:var(--accent);margin-left:12px;flex-shrink:0}
+.card-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.meta-pill{font-size:11px;padding:3px 10px;border-radius:20px;background:var(--surface2)}
+.meta-pill.marque{color:var(--accent);border:1px solid rgba(124,106,247,.3)}
+.card-fav{font-size:12px;color:var(--text2);margin-bottom:14px}
+
+.card-actions{display:flex;gap:8px}
+.btn-buy{flex:2;background:var(--accent);color:#fff;font-size:14px;font-weight:700;padding:12px;border-radius:10px;text-decoration:none;text-align:center;transition:opacity .15s}
+.btn-buy:hover{opacity:.85}
+.btn-skip{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:14px;padding:12px;border-radius:10px;cursor:pointer;text-align:center;transition:all .15s}
+.btn-skip:hover{border-color:var(--red);color:var(--red)}
+
+.progress-bar{height:3px;background:var(--surface2);position:relative;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);width:100%;transform-origin:left;transition:none}
+.progress-fill.running{transition:width linear}
+
+.waiting{text-align:center;color:var(--text2);font-size:14px}
+.waiting-icon{font-size:48px;margin-bottom:12px}
+
+.paused-banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:var(--text);font-size:12px;padding:6px 14px;border-radius:20px;z-index:10;display:none}
+.paused-banner.show{display:block}
 </style>
 </head><body>
 
@@ -227,75 +214,81 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="logo">Vinted<em>Feed</em></div>
   <div class="live-dot" id="liveDot"></div>
   <span id="liveText" style="font-size:12px;color:var(--text2)">Connexion...</span>
-  <span class="counter" id="counter">0 articles</span>
+  <div class="header-right">
+    <span class="counter" id="counter">0 vus</span>
+    <div class="speed-wrap">
+      Vitesse :
+      <button class="speed-btn" onclick="setSpeed(3000)">Lente</button>
+      <button class="speed-btn active" onclick="setSpeed(5000)">Normal</button>
+      <button class="speed-btn" onclick="setSpeed(8000)">Rapide</button>
+    </div>
+  </div>
 </div>
 
 <div class="filters">
   <select class="filter-select" id="fCat" onchange="applyFilters()">
     <option value="">Toutes catégories</option>
-    <option>Vêtements femme</option>
-    <option>Vêtements homme</option>
+    <option>Vetements femme</option>
+    <option>Vetements homme</option>
     <option>Chaussures femme</option>
     <option>Chaussures homme</option>
-    <option>Sacs</option>
-    <option>Accessoires</option>
-    <option>Sport</option>
-    <option>Électronique</option>
-    <option>Maison</option>
-    <option>Jeux vidéo</option>
-    <option>Livres</option>
-    <option>Enfants</option>
+    <option>Sacs</option><option>Accessoires</option>
+    <option>Sport</option><option>Electronique</option>
+    <option>Maison</option><option>Jeux video</option>
+    <option>Livres</option><option>Enfants</option>
   </select>
-
   <select class="filter-select" id="fTaille" onchange="applyFilters()">
     <option value="">Toutes tailles</option>
-    <optgroup label="Vêtements"><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></optgroup>
+    <optgroup label="Vetements"><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></optgroup>
     <optgroup label="Chaussures"><option>36</option><option>37</option><option>38</option><option>39</option><option>40</option><option>41</option><option>42</option><option>43</option><option>44</option><option>45</option></optgroup>
   </select>
-
   <select class="filter-select" id="fPrix" onchange="applyFilters()">
-    <option value="">Tous les prix</option>
+    <option value="">Tous prix</option>
     <option value="0,10">Moins de 10€</option>
     <option value="0,20">Moins de 20€</option>
     <option value="0,50">Moins de 50€</option>
     <option value="10,30">10€ — 30€</option>
     <option value="20,50">20€ — 50€</option>
-    <option value="50,200">Plus de 50€</option>
+    <option value="50,999">Plus de 50€</option>
   </select>
-
   <select class="filter-select" id="fMarque" onchange="applyFilters()">
     <option value="">Toutes marques</option>
     <option>Nike</option><option>Adidas</option><option>Jordan</option>
     <option>New Balance</option><option>Puma</option><option>Converse</option>
-    <option>Vans</option><option>The North Face</option><option>Patagonia</option>
-    <option>Levi's</option><option>Zara</option><option>H&M</option>
-    <option>Ralph Lauren</option><option>Tommy Hilfiger</option><option>Lacoste</option>
-    <option>Stone Island</option><option>Supreme</option><option>Carhartt</option>
-    <option>Apple</option><option>Samsung</option><option>Sony</option><option>Nintendo</option>
-    <option>Louis Vuitton</option><option>Gucci</option><option>Balenciaga</option>
+    <option>Vans</option><option>The North Face</option><option>Levi's</option>
+    <option>Zara</option><option>H&M</option><option>Ralph Lauren</option>
+    <option>Tommy Hilfiger</option><option>Lacoste</option><option>Stone Island</option>
+    <option>Supreme</option><option>Carhartt</option><option>Apple</option>
+    <option>Samsung</option><option>Sony</option><option>Nintendo</option>
   </select>
-
   <button class="btn-reset" onclick="resetFilters()">Reset</button>
-  <button class="btn-notif" id="btnNotif" onclick="toggleNotif()">🔔 Alertes</button>
 </div>
 
-<div class="feed" id="feed">
-  <div class="empty">
-    <div class="empty-icon">⚡</div>
-    <div class="empty-text">Le feed démarre...<br>Les articles vont apparaître automatiquement</div>
-  </div>
-</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
-<button class="scroll-top" id="scrollTop" onclick="scrollToTop()">↑</button>
+<div class="stage" id="stage">
+  <div class="waiting"><div class="waiting-icon">⚡</div>Connexion au feed...</div>
+</div>
+<div class="paused-banner" id="pausedBanner">⏸ En pause — clique pour reprendre</div>
 
 <script>
-let totalCount = 0;
-let notifEnabled = false;
-let filters = {cat:'', taille:'', prixMin:0, prixMax:0, marque:''};
+let buffer = [];
+let seenIds = new Set();
+let currentArt = null;
+let autoTimer = null;
+let speed = 5000;
+let paused = false;
+let viewed = 0;
 let sseSource = null;
-let reconnectTimer = null;
+let filters = {cat:'',taille:'',prixMin:0,prixMax:0,marque:''};
 
-// ── FILTRES ───────────────────────────────────────────────────────────────────
+function setSpeed(ms) {
+  speed = ms;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (!paused) scheduleNext(true);
+}
+
 function applyFilters() {
   const prixVal = document.getElementById('fPrix').value;
   filters.cat    = document.getElementById('fCat').value;
@@ -306,168 +299,149 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  document.getElementById('fCat').value = '';
-  document.getElementById('fTaille').value = '';
-  document.getElementById('fPrix').value = '';
-  document.getElementById('fMarque').value = '';
-  filters = {cat:'', taille:'', prixMin:0, prixMax:0, marque:''};
+  ['fCat','fTaille','fPrix','fMarque'].forEach(id => document.getElementById(id).value = '');
+  filters = {cat:'',taille:'',prixMin:0,prixMax:0,marque:''};
 }
 
 function matchFilters(o) {
-  if (filters.cat && o.categorie !== filters.cat) return false;
-  if (filters.taille && !o.taille.includes(filters.taille)) return false;
+  if (filters.cat && !o.categorie.includes(filters.cat)) return false;
+  if (filters.taille && !(o.taille||'').includes(filters.taille)) return false;
   if (filters.marque && !(o.marque||'').toLowerCase().includes(filters.marque.toLowerCase())) return false;
   if (filters.prixMin && o.prix < filters.prixMin) return false;
   if (filters.prixMax && o.prix > filters.prixMax) return false;
   return true;
 }
 
-// ── CARTE ────────────────────────────────────────────────────────────────────
-function makeCard(o, isNew) {
-  const img = o.photo_url
-    ? `<img class="card-img" src="${o.photo_url}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-    : '';
-  const placeholder = `<div class="card-img-placeholder" style="${o.photo_url?'display:none':''}">📷</div>`;
-  const newBadge = isNew ? `<span class="badge badge-new">NOUVEAU</span>` : `<span></span>`;
-  const ecoColor = o.eco > 25 ? '#ff4d6d' : o.eco > 10 ? '#ffd166' : '#00d68f';
-  const ecoBadge = o.eco > 0 ? `<span class="badge badge-eco" style="background:${ecoColor}">-${o.eco}%</span>` : `<span></span>`;
+function showCard(o) {
+  currentArt = o;
+  const isNew = (Date.now()/1000 - (o.ts||0)) < 120;
+  const stage = document.getElementById('stage');
 
-  const card = document.createElement('div');
-  card.className = 'card' + (isNew ? ' new' : '');
-  card.dataset.id = o.id;
-  card.innerHTML = `
-    <div class="card-img-wrap">
-      ${img}${placeholder}
-      <div class="card-badges">${newBadge}${ecoBadge}</div>
-    </div>
-    <div class="card-body">
-      <div class="card-cat">${o.categorie||''}</div>
-      <div class="card-titre">${o.titre||''}</div>
-      ${o.marque && o.marque !== '—' ? `<div class="card-marque">${o.marque}</div>` : ''}
-      <div class="card-bottom">
-        <span class="card-prix">${o.prix}€</span>
-        ${o.taille ? `<span class="card-taille">${o.taille}</span>` : ''}
+  const img = o.photo_url
+    ? `<img class="card-img" src="${o.photo_url}" loading="eager" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : '';
+  const placeholder = `<div class="card-img-placeholder" style="${o.photo_url?'display:none':''}">🏷️</div>`;
+
+  stage.innerHTML = `
+    <div class="card">
+      <div class="card-img-wrap">
+        ${img}${placeholder}
+        ${isNew ? '<span class="badge-new">NOUVEAU</span>' : ''}
+        <span class="badge-cat">${o.categorie||''}</span>
       </div>
-      ${o.nb_favoris ? `<div class="card-fav">❤️ ${o.nb_favoris}</div>` : ''}
-    </div>
-    <div style="display:flex;gap:6px;margin:0 10px 10px">
-      <a class="card-btn" href="${o.url}/buy" target="_blank" style="flex:2;background:var(--accent)">💳 Acheter</a>
-      <a class="card-btn" href="${o.url}" target="_blank" style="flex:1;background:var(--surface2);color:var(--text2)">👁</a>
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-titre">${o.titre||''}</div>
+          <div class="card-prix-big">${o.prix}€</div>
+        </div>
+        <div class="card-meta">
+          ${o.marque ? `<span class="meta-pill marque">${o.marque}</span>` : ''}
+          ${o.taille ? `<span class="meta-pill">${o.taille}</span>` : ''}
+        </div>
+        ${o.nb_favoris ? `<div class="card-fav">❤️ ${o.nb_favoris} favoris</div>` : ''}
+        <div class="card-actions">
+          <a class="btn-buy" href="${o.url}/buy" target="_blank">💳 Acheter</a>
+          <div class="btn-skip" onclick="skipCard()">⏭ Passer</div>
+        </div>
+      </div>
     </div>`;
 
-  // Retirer le badge NOUVEAU après 30s
-  if (isNew) {
-    setTimeout(() => {
-      card.classList.remove('new');
-      const badge = card.querySelector('.badge-new');
-      if (badge) badge.style.display = 'none';
-    }, 30000);
-  }
-
-  return card;
+  viewed++;
+  document.getElementById('counter').textContent = viewed + ' vus';
+  startProgress();
 }
 
-// File d'attente pour affichage 1 par 1
-const cardQueue = [];
-let isProcessing = false;
+function nextCard() {
+  let art = null;
+  while (buffer.length > 0) {
+    art = buffer.shift();
+    if (matchFilters(art)) break;
+    art = null;
+  }
+  if (art) {
+    showCard(art);
+  } else {
+    document.getElementById('stage').innerHTML = `<div class="waiting"><div class="waiting-icon">⏳</div>En attente de nouveaux articles...</div>`;
+    document.getElementById('progressFill').style.width = '100%';
+  }
+}
 
-function processQueue() {
-  if (isProcessing || cardQueue.length === 0) return;
-  isProcessing = true;
-  const {o, isNew} = cardQueue.shift();
-  _addCardNow(o, isNew);
+function skipCard() {
+  clearTimeout(autoTimer);
+  document.getElementById('progressFill').style.transition = 'none';
+  document.getElementById('progressFill').style.width = '100%';
+  nextCard();
+}
+
+function scheduleNext(immediate) {
+  clearTimeout(autoTimer);
+  if (paused) return;
+  autoTimer = setTimeout(() => nextCard(), immediate ? 0 : speed);
+}
+
+function startProgress() {
+  const bar = document.getElementById('progressFill');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
   setTimeout(() => {
-    isProcessing = false;
-    processQueue();
-  }, 180); // 180ms entre chaque carte
+    bar.style.transition = `width ${speed}ms linear`;
+    bar.style.width = '0%';
+  }, 50);
+  scheduleNext(false);
 }
 
-function addCard(o, isNew) {
-  if (!matchFilters(o)) return;
-  cardQueue.push({o, isNew});
-  processQueue();
-}
-
-function _addCardNow(o, isNew) {
-  const feed = document.getElementById('feed');
-  const empty = feed.querySelector('.empty');
-  if (empty) feed.innerHTML = '';
-
-  const card = makeCard(o, isNew);
-  feed.prepend(card);
-  totalCount++;
-  document.getElementById('counter').textContent = totalCount.toLocaleString('fr-FR') + ' articles';
-
-  // Notification push
-  if (notifEnabled && isNew && Notification.permission === 'granted') {
-    const n = new Notification(`${o.marque || o.categorie} — ${o.prix}€`, {
-      body: o.titre,
-      tag: o.id,
-    });
-    n.onclick = () => { window.open(o.url, '_blank'); n.close(); };
-    setTimeout(() => n.close(), 6000);
+// Toggle pause au clic sur la scène
+document.getElementById('stage').addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-skip') || e.target.classList.contains('btn-buy')) return;
+  paused = !paused;
+  const banner = document.getElementById('pausedBanner');
+  banner.classList.toggle('show', paused);
+  if (!paused) {
+    banner.classList.remove('show');
+    scheduleNext(false);
+  } else {
+    clearTimeout(autoTimer);
+    const bar = document.getElementById('progressFill');
+    bar.style.transition = 'none';
   }
+});
 
-  // Limiter à 300 cartes
-  while (feed.children.length > 300) feed.removeChild(feed.lastChild);
-}
-
-// ── SSE ──────────────────────────────────────────────────────────────────────
+// SSE
 function connectSSE() {
   if (sseSource) sseSource.close();
   sseSource = new EventSource('/api/stream');
-
   sseSource.onopen = () => {
     document.getElementById('liveDot').classList.add('on');
     document.getElementById('liveText').textContent = 'En direct';
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   };
-
   sseSource.onmessage = (e) => {
     if (!e.data || e.data === '{}') return;
     try {
       const o = JSON.parse(e.data);
-      if (!o.id) return;
-      addCard(o, true);
-    } catch(err) {}
+      if (!o.id || seenIds.has(o.id)) return;
+      seenIds.add(o.id);
+      o.ts = Date.now()/1000;
+      if (matchFilters(o)) buffer.push(o);
+      // Si rien n'est affiché, démarrer
+      if (!currentArt || document.querySelector('.waiting')) nextCard();
+    } catch(e) {}
   };
-
   sseSource.onerror = () => {
     document.getElementById('liveDot').classList.remove('on');
     document.getElementById('liveText').textContent = 'Reconnexion...';
     sseSource.close();
-    reconnectTimer = setTimeout(connectSSE, 3000);
+    setTimeout(connectSSE, 3000);
   };
 }
 
-// ── NOTIFS ───────────────────────────────────────────────────────────────────
-function toggleNotif() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'granted') {
-    notifEnabled = !notifEnabled;
-  } else {
-    Notification.requestPermission().then(p => {
-      if (p === 'granted') notifEnabled = true;
-    });
-  }
-  const btn = document.getElementById('btnNotif');
-  btn.textContent = notifEnabled ? '🔔 Alertes ON' : '🔔 Alertes';
-  btn.classList.toggle('on', notifEnabled);
-}
-
-// ── SCROLL ───────────────────────────────────────────────────────────────────
-const feed = document.getElementById('feed');
-feed.addEventListener('scroll', () => {
-  document.getElementById('scrollTop').classList.toggle('show', feed.scrollTop > 300);
-});
-function scrollToTop() { feed.scrollTo({top:0, behavior:'smooth'}); }
-
-// ── INIT ─────────────────────────────────────────────────────────────────────
-// Charger les derniers articles au démarrage
+// Charger articles initiaux
 async function loadInitial() {
   try {
-    const d = await fetch('/api/feed?limit=40').then(r => r.json());
-    (d.articles || []).reverse().forEach(o => addCard(o, false));
+    const d = await fetch('/api/feed?limit=100').then(r => r.json());
+    (d.articles||[]).forEach(o => {
+      if (!seenIds.has(o.id)) { seenIds.add(o.id); buffer.push(o); }
+    });
+    nextCard();
   } catch(e) {}
 }
 
@@ -476,8 +450,6 @@ connectSSE();
 </script>
 </body></html>"""
 
-# ── API ───────────────────────────────────────────────────────────────────────
-
 @app.route("/")
 def index():
     return render_template_string(HTML)
@@ -485,64 +457,28 @@ def index():
 @app.route("/api/stream")
 def api_stream():
     def generate():
-        ping = "data: {}" + chr(10) + chr(10)
-        yield ping
+        yield "data: {}" + chr(10) + chr(10)
         while True:
             try:
                 art = feed_queue.get(timeout=20)
-                line = "data: " + json.dumps(art, ensure_ascii=False) + chr(10) + chr(10)
-                yield line
+                yield "data: " + json.dumps(art, ensure_ascii=False) + chr(10) + chr(10)
             except queue.Empty:
                 yield ": ping" + chr(10) + chr(10)
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
-    )
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
 
 @app.route("/api/feed")
 def api_feed():
     try:
-        limit  = int(request.args.get("limit", 40))
-        cat    = request.args.get("cat", "").strip()
-        marque = request.args.get("marque", "").strip()
-        taille = request.args.get("taille", "").strip()
-        prix_min = request.args.get("prix_min", "").strip()
-        prix_max = request.args.get("prix_max", "").strip()
-
-        where = "WHERE 1=1"
-        params = []
-        if cat:     where += " AND categorie=?"; params.append(cat)
-        if marque:  where += " AND LOWER(marque) LIKE LOWER(?)"; params.append(f"%{marque}%")
-        if taille:  where += " AND taille LIKE ?"; params.append(f"%{taille}%")
-        if prix_min: where += " AND prix>=?"; params.append(float(prix_min))
-        if prix_max: where += " AND prix<=?"; params.append(float(prix_max))
-
+        limit = int(request.args.get("limit", 100))
         c = sqlite3.connect(DB)
-        rows = c.execute(f"""
-            SELECT id,titre,marque,prix,categorie,taille,nb_favoris,url,photo_url
-            FROM articles {where}
-            ORDER BY date_scraping DESC LIMIT ?
-        """, params + [limit]).fetchall()
+        rows = c.execute("SELECT id,titre,marque,prix,categorie,taille,nb_favoris,url,photo_url FROM articles ORDER BY date_scraping DESC LIMIT ?", (limit,)).fetchall()
         c.close()
-
-        articles = [{"id":r[0],"titre":r[1],"marque":r[2],"prix":r[3],"categorie":r[4],
-                     "taille":r[5],"nb_favoris":r[6],"url":r[7],"photo_url":r[8],"eco":0} for r in rows]
-        return jsonify({"articles": articles})
+        arts = [{"id":r[0],"titre":r[1],"marque":r[2],"prix":r[3],"categorie":r[4],"taille":r[5],"nb_favoris":r[6],"url":r[7],"photo_url":r[8]} for r in rows]
+        return jsonify({"articles": arts})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/stats")
-def api_stats():
-    try:
-        c = sqlite3.connect(DB)
-        total = c.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
-        c.close()
-        return jsonify({"total": total, "proxies": len(PROXIES)})
-    except:
-        return jsonify({"total": 0})
-
-# ── INIT ──────────────────────────────────────────────────────────────────────
 init_db()
 threading.Thread(target=start_scanner, daemon=True).start()
 
