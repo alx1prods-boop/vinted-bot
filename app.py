@@ -872,7 +872,10 @@ async function loadOpps() {
             <span style="font-size:16px;font-weight:700">${o.prix}€</span>
             ${hasEco ? `<span style="font-size:11px;color:var(--text2);text-decoration:line-through">${o.prix_moy}€</span>` : ''}
           </div>
-          <div style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+            ${o.taille ? `<span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:20px">${o.taille}</span>` : ''}
+            <span style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris}</span>
+          </div>
           <div style="display:flex;gap:6px;margin-top:6px">
             <a href="${o.url}" target="_blank" style="flex:1;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px 0;border-radius:7px;text-decoration:none;text-align:center">Acheter</a>
           </div>
@@ -1008,7 +1011,10 @@ function prependArticle(o) {
         <span style="font-size:16px;font-weight:700">${o.prix}€</span>
         ${hasEco ? `<span style="font-size:11px;color:var(--text2);text-decoration:line-through">${o.prix_moy}€</span>` : ''}
       </div>
-      <div style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris||0}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+        ${o.taille ? `<span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:20px">${o.taille}</span>` : ''}
+        <span style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris||0}</span>
+      </div>
       <div style="margin-top:6px">
         <a href="${o.url}" target="_blank" style="display:block;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px 0;border-radius:7px;text-decoration:none;text-align:center">Acheter</a>
       </div>
@@ -1244,7 +1250,7 @@ def api_opportunites():
 
         rows = c.execute(f"""
             SELECT a.id, a.titre, a.marque, a.prix, a.categorie,
-                   a.nb_favoris, a.nb_vues, a.url, a.date_scraping, a.photo_url
+                   a.nb_favoris, a.nb_vues, a.url, a.date_scraping, a.photo_url, a.taille
             FROM articles a {where}
             ORDER BY a.date_scraping DESC LIMIT 200
         """, params).fetchall()
@@ -1252,7 +1258,7 @@ def api_opportunites():
 
         opportunites = []
         for r in rows:
-            iid, titre, marque, prix, cat, fav, vues, url, date_scrap, photo_url = r
+            iid, titre, marque, prix, cat, fav, vues, url, date_scrap, photo_url, taille = r
             cle = f"{marque}_{cat}"
             niche = prix_moyens.get(cle, {})
             prix_moy = niche.get("moy", 0)
@@ -1272,6 +1278,7 @@ def api_opportunites():
                 "economie_eur": economie_eur, "nb_niche": niche.get("nb",0),
                 "score_opp": score_opp, "fraicheur": fraicheur, "url": url,
                 "photo_url": photo_url or "",
+                "taille": taille or "",
             })
 
         if tri == "economie":
