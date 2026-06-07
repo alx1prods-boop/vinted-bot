@@ -563,22 +563,46 @@ let allBrands = [];
 let selectedBrands = [];
 let selectedCats = [];
 
-async function loadVintedData() {
-  try {
-    // Catégories
-    const dc = await fetch('/api/cats').then(r => r.json());
-    const cats = dc.cats || [];
-    const ddCat = document.getElementById('ddCat');
-    if (cats.length) {
-      ddCat.innerHTML = cats.map(c =>
-        '<label class="dd-item"><input type="checkbox" value="' + c.short + '" onchange="onFilterCat()"> ' + c.short + '</label>'
-      ).join('');
-    }
+// Données statiques immédiates
+const CATS_STATIC = [
+  "Vetements femme","Vetements homme","Chaussures femme","Chaussures homme",
+  "Sacs","Accessoires","Sport","Electronique","Maison","Jeux video","Livres","Enfants"
+];
+const BRANDS_STATIC = [
+  "Nike","Adidas","Jordan","New Balance","Puma","Converse","Vans","Reebok","Asics","Saucony",
+  "Supreme","Carhartt","Stone Island","Palace","Stussy","Off-White","A Bathing Ape","Kith",
+  "Zara","H&M","Mango","Pull&Bear","Bershka","Uniqlo","Cos","& Other Stories",
+  "Ralph Lauren","Tommy Hilfiger","Lacoste","Levi's","Wrangler","Lee","Calvin Klein","Guess",
+  "The North Face","Patagonia","Arc'teryx","Salomon","Columbia","Napapijri","Canada Goose",
+  "Louis Vuitton","Gucci","Prada","Balenciaga","Dior","Chanel","Hermes","Givenchy","Burberry",
+  "Apple","Samsung","Sony","Nintendo","Microsoft","Bose","JBL","Beats",
+  "Decathlon","Nike Training","Adidas Sport","Under Armour","Lululemon",
+  "Vintage","Y2K","Retro"
+];
 
-    // Marques
+function initStaticFilters() {
+  // Catégories statiques
+  const ddCat = document.getElementById('ddCat');
+  ddCat.innerHTML = CATS_STATIC.map(c =>
+    '<label class="dd-item"><input type="checkbox" value="' + c + '" onchange="onFilterCat()"> ' + c.replace('Vetements','Vêtements').replace('Electronique','Électronique').replace('video','vidéo') + '</label>'
+  ).join('');
+
+  // Marques statiques
+  allBrands = BRANDS_STATIC.map(b => ({title: b}));
+  renderBrands(allBrands);
+}
+
+async function loadVintedData() {
+  // Charger d'abord les données statiques immédiatement
+  initStaticFilters();
+
+  // Puis essayer de charger les vraies données en arrière-plan
+  try {
     const db = await fetch('/api/brands').then(r => r.json());
-    allBrands = db.brands || [];
-    renderBrands(allBrands);
+    if (db.brands && db.brands.length > 0) {
+      allBrands = db.brands;
+      renderBrands(allBrands);
+    }
   } catch(e) {}
 }
 
