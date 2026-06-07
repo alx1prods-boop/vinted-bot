@@ -522,5 +522,13 @@ function goTop(){document.getElementById('feed').scrollTo({top:0,behavior:'smoot
 
 loadInit();
 connectSSE();
+
+// Recharge les nouveaux articles toutes les 10 secondes
+setInterval(async function(){
+  try {
+    var d = await fetch(buildUrl()).then(function(r){return r.json();});
+    (d.articles||[]).forEach(function(o){ addCard(o, true); });
+  } catch(e) {}
+}, 10000);
 </script>
 </body></html>"""
