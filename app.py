@@ -295,23 +295,23 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
     Taille <span id="lblTaille"></span>
     <div class="dd" id="ddTaille">
       <div class="dd-sep">Vêtements</div>
-      <label class="dd-item"><input type="checkbox" value="XS" onchange="onFilter()"> XS</label>
-      <label class="dd-item"><input type="checkbox" value="S" onchange="onFilter()"> S</label>
-      <label class="dd-item"><input type="checkbox" value="M" onchange="onFilter()"> M</label>
-      <label class="dd-item"><input type="checkbox" value="L" onchange="onFilter()"> L</label>
-      <label class="dd-item"><input type="checkbox" value="XL" onchange="onFilter()"> XL</label>
-      <label class="dd-item"><input type="checkbox" value="XXL" onchange="onFilter()"> XXL</label>
+      <div class="dd-item" onclick="toggleTaille('XS',this)"><span style="font-size:14px;margin-right:4px"></span>XS</div>
+      <div class="dd-item" onclick="toggleTaille('S',this)"><span style="font-size:14px;margin-right:4px"></span>S</div>
+      <div class="dd-item" onclick="toggleTaille('M',this)"><span style="font-size:14px;margin-right:4px"></span>M</div>
+      <div class="dd-item" onclick="toggleTaille('L',this)"><span style="font-size:14px;margin-right:4px"></span>L</div>
+      <div class="dd-item" onclick="toggleTaille('XL',this)"><span style="font-size:14px;margin-right:4px"></span>XL</div>
+      <div class="dd-item" onclick="toggleTaille('XXL',this)"><span style="font-size:14px;margin-right:4px"></span>XXL</div>
       <div class="dd-sep">Chaussures</div>
-      <label class="dd-item"><input type="checkbox" value="36" onchange="onFilter()"> 36</label>
-      <label class="dd-item"><input type="checkbox" value="37" onchange="onFilter()"> 37</label>
-      <label class="dd-item"><input type="checkbox" value="38" onchange="onFilter()"> 38</label>
-      <label class="dd-item"><input type="checkbox" value="39" onchange="onFilter()"> 39</label>
-      <label class="dd-item"><input type="checkbox" value="40" onchange="onFilter()"> 40</label>
-      <label class="dd-item"><input type="checkbox" value="41" onchange="onFilter()"> 41</label>
-      <label class="dd-item"><input type="checkbox" value="42" onchange="onFilter()"> 42</label>
-      <label class="dd-item"><input type="checkbox" value="43" onchange="onFilter()"> 43</label>
-      <label class="dd-item"><input type="checkbox" value="44" onchange="onFilter()"> 44</label>
-      <label class="dd-item"><input type="checkbox" value="45" onchange="onFilter()"> 45</label>
+      <div class="dd-item" onclick="toggleTaille('36',this)"><span style="font-size:14px;margin-right:4px"></span>36</div>
+      <div class="dd-item" onclick="toggleTaille('37',this)"><span style="font-size:14px;margin-right:4px"></span>37</div>
+      <div class="dd-item" onclick="toggleTaille('38',this)"><span style="font-size:14px;margin-right:4px"></span>38</div>
+      <div class="dd-item" onclick="toggleTaille('39',this)"><span style="font-size:14px;margin-right:4px"></span>39</div>
+      <div class="dd-item" onclick="toggleTaille('40',this)"><span style="font-size:14px;margin-right:4px"></span>40</div>
+      <div class="dd-item" onclick="toggleTaille('41',this)"><span style="font-size:14px;margin-right:4px"></span>41</div>
+      <div class="dd-item" onclick="toggleTaille('42',this)"><span style="font-size:14px;margin-right:4px"></span>42</div>
+      <div class="dd-item" onclick="toggleTaille('43',this)"><span style="font-size:14px;margin-right:4px"></span>43</div>
+      <div class="dd-item" onclick="toggleTaille('44',this)"><span style="font-size:14px;margin-right:4px"></span>44</div>
+      <div class="dd-item" onclick="toggleTaille('45',this)"><span style="font-size:14px;margin-right:4px"></span>45</div>
     </div>
   </div>
 
@@ -390,12 +390,10 @@ document.addEventListener('touchstart', function(e) {
 
 // ── FILTRES ───────────────────────────────────────────────────────────────────
 function onFilter() {
-  filters.cats = [...document.querySelectorAll('#ddCat input:checked')].map(i => i.value);
-  filters.marques = [...document.querySelectorAll('#ddMarque input:checked')].map(i => i.value);
-  filters.tailles = [...document.querySelectorAll('#ddTaille input:checked')].map(i => i.value);
   filters.pMin = parseFloat(document.getElementById('pMin').value) || 0;
   filters.pMax = parseFloat(document.getElementById('pMax').value) || 0;
   updatePills();
+  reloadFeedWithFilters();
 }
 
 function updatePills() {
@@ -410,17 +408,24 @@ function setPreset(mn, mx) {
   document.getElementById('pMax').value = mx === 999 ? '' : mx;
   filters.pMin = mn; filters.pMax = mx;
   updatePills();
+  reloadFeedWithFilters();
 }
 
 function resetAll() {
-  document.querySelectorAll('.dd input[type=checkbox]').forEach(cb => cb.checked = false);
   document.getElementById('pMin').value = '';
   document.getElementById('pMax').value = '';
   if (document.getElementById('searchMarque')) document.getElementById('searchMarque').value = '';
   selectedBrands = []; selectedCats = [];
   filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
+  document.querySelectorAll('.dd-item.on').forEach(el => {
+    el.classList.remove('on');
+    el.style.color = ''; el.style.background = '';
+    const sp = el.querySelector('span'); if(sp) sp.textContent = '';
+  });
+  document.querySelectorAll('.dd input[type=checkbox]').forEach(cb => cb.checked = false);
   ['lblCat','lblMarque','lblTaille','lblPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = ''; });
   ['pillCat','pillMarque','pillTaille','pillPrix'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
+  initStaticFilters();
 }
 
 function matchFilters(o) {
@@ -477,8 +482,8 @@ function makeCard(o, isNew) {
 
 function addCard(o, isNew) {
   if (renderedIds.has(o.id)) return;
-  if (!matchFilters(o)) return;
   renderedIds.add(o.id);
+  if (!matchFilters(o)) return;
 
   const feed = document.getElementById('feed');
   const waiting = feed.querySelector('.waiting-card');
@@ -583,9 +588,11 @@ const BRANDS_STATIC = [
 function initStaticFilters() {
   // Catégories statiques
   const ddCat = document.getElementById('ddCat');
-  ddCat.innerHTML = CATS_STATIC.map(c =>
-    '<label class="dd-item"><input type="checkbox" value="' + c + '" onchange="onFilterCat()"> ' + c.replace('Vetements','Vêtements').replace('Electronique','Électronique').replace('video','vidéo') + '</label>'
-  ).join('');
+  ddCat.innerHTML = CATS_STATIC.map(c => {
+    const label = c.replace('Vetements','Vêtements').replace('Electronique','Électronique').replace('video','vidéo');
+    return '<div class="dd-item" onclick="toggleCat('' + c + '',this)">' +
+      '<span style="font-size:14px;margin-right:4px"></span>' + label + '</div>';
+  }).join('');
 
   // Marques statiques
   allBrands = BRANDS_STATIC.map(b => ({title: b}));
@@ -609,10 +616,33 @@ async function loadVintedData() {
 function renderBrands(brands) {
   const list = document.getElementById('brandsList');
   if (!brands.length) { list.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--t2)">Aucune marque trouvée</div>'; return; }
-  list.innerHTML = brands.slice(0, 150).map(b =>
-    '<label class="dd-item ' + (selectedBrands.includes(b.title) ? 'on' : '') + '">' +
-    '<input type="checkbox" value="' + b.title + '" ' + (selectedBrands.includes(b.title) ? 'checked' : '') + ' onchange="onFilterMarque()"> ' + b.title + '</label>'
-  ).join('');
+  list.innerHTML = brands.slice(0, 150).map(b => {
+    const sel = selectedBrands.includes(b.title);
+    return '<div class="dd-item' + (sel ? ' on' : '') + '" onclick="toggleBrand('' + b.title.replace(/'/g,"\'") + '',this)" style="' + (sel ? 'color:var(--acc);background:rgba(184,255,0,.08)' : '') + '">' +
+      '<span style="font-size:14px;margin-right:4px">' + (sel ? '✓' : '') + '</span>' + b.title + '</div>';
+  }).join('');
+}
+
+function toggleBrand(title, el) {
+  event.stopPropagation();
+  const idx = selectedBrands.indexOf(title);
+  if (idx === -1) {
+    selectedBrands.push(title);
+    el.classList.add('on');
+    el.style.color = 'var(--acc)';
+    el.style.background = 'rgba(184,255,0,.08)';
+    el.querySelector('span').textContent = '✓';
+  } else {
+    selectedBrands.splice(idx, 1);
+    el.classList.remove('on');
+    el.style.color = '';
+    el.style.background = '';
+    el.querySelector('span').textContent = '';
+  }
+  filters.marques = selectedBrands.slice();
+  document.getElementById('lblMarque').textContent = selectedBrands.length ? '(' + selectedBrands.length + ')' : '';
+  document.getElementById('pillMarque').classList.toggle('active', selectedBrands.length > 0);
+  reloadFeedWithFilters();
 }
 
 function filterBrands() {
@@ -621,18 +651,59 @@ function filterBrands() {
   renderBrands(filtered);
 }
 
-function onFilterCat() {
-  selectedCats = [...document.querySelectorAll('#ddCat input:checked')].map(i => i.value);
-  filters.cats = selectedCats;
-  document.getElementById('lblCat').textContent = selectedCats.length ? '(' + selectedCats.length + ')' : '';
-  document.getElementById('pillCat').classList.toggle('active', selectedCats.length > 0);
+function reloadFeedWithFilters() {
+  // Vider le feed visuel et recharger depuis la base
+  renderedIds.clear();
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '<div class="waiting-card"><div class="waiting-icon">🔍</div><div>Filtrage...</div></div>';
+  setTimeout(loadInitial, 100);
 }
 
-function onFilterMarque() {
-  selectedBrands = [...document.querySelectorAll('#brandsList input:checked')].map(i => i.value);
-  filters.marques = selectedBrands;
-  document.getElementById('lblMarque').textContent = selectedBrands.length ? '(' + selectedBrands.length + ')' : '';
-  document.getElementById('pillMarque').classList.toggle('active', selectedBrands.length > 0);
+function toggleCat(val, el) {
+  event.stopPropagation();
+  const idx = selectedCats.indexOf(val);
+  if (idx === -1) {
+    selectedCats.push(val);
+    el.classList.add('on');
+    el.style.color = 'var(--acc)';
+    el.style.background = 'rgba(184,255,0,.08)';
+    el.querySelector('span').textContent = '✓';
+  } else {
+    selectedCats.splice(idx, 1);
+    el.classList.remove('on');
+    el.style.color = '';
+    el.style.background = '';
+    el.querySelector('span').textContent = '';
+  }
+  filters.cats = selectedCats.slice();
+  document.getElementById('lblCat').textContent = selectedCats.length ? '(' + selectedCats.length + ')' : '';
+  document.getElementById('pillCat').classList.toggle('active', selectedCats.length > 0);
+  reloadFeedWithFilters();
+}
+
+function onFilterCat() {}
+
+function onFilterMarque() {}
+
+function toggleTaille(val, el) {
+  event.stopPropagation();
+  const idx = filters.tailles.indexOf(val);
+  if (idx === -1) {
+    filters.tailles.push(val);
+    el.classList.add('on');
+    el.style.color = 'var(--acc)';
+    el.style.background = 'rgba(184,255,0,.08)';
+    el.querySelector('span').textContent = '✓';
+  } else {
+    filters.tailles.splice(idx, 1);
+    el.classList.remove('on');
+    el.style.color = '';
+    el.style.background = '';
+    el.querySelector('span').textContent = '';
+  }
+  document.getElementById('lblTaille').textContent = filters.tailles.length ? '(' + filters.tailles.length + ')' : '';
+  document.getElementById('pillTaille').classList.toggle('active', filters.tailles.length > 0);
+  reloadFeedWithFilters();
 }
 
 loadVintedData();
