@@ -316,14 +316,16 @@ function showCard(o) {
   currentArt = o;
   const isNew = (Date.now()/1000 - (o.ts||0)) < 120;
   const stage = document.getElementById('stage');
+  // Vider complètement le stage
+  stage.innerHTML = '';
 
   const img = o.photo_url
     ? `<img class="card-img" src="${o.photo_url}" loading="eager" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
     : '';
   const placeholder = `<div class="card-img-placeholder" style="${o.photo_url?'display:none':''}">🏷️</div>`;
 
-  stage.innerHTML = `
-    <div class="card">
+  const cardEl = document.createElement('div');
+  cardEl.innerHTML = `<div class="card">
       <div class="card-img-wrap">
         ${img}${placeholder}
         ${isNew ? '<span class="badge-new">NOUVEAU</span>' : ''}
@@ -340,11 +342,12 @@ function showCard(o) {
         </div>
         ${o.nb_favoris ? `<div class="card-fav">❤️ ${o.nb_favoris} favoris</div>` : ''}
         <div class="card-actions">
-          <a class="btn-buy" href="${o.url}/buy" target="_blank">💳 Acheter</a>
+          <a class="btn-buy" href="${o.url}" target="_blank">💳 Acheter</a>
           <div class="btn-skip" onclick="skipCard()">⏭ Passer</div>
         </div>
       </div>
     </div>`;
+  stage.appendChild(cardEl.firstElementChild);
 
   viewed++;
   document.getElementById('counter').textContent = viewed + ' vus';
