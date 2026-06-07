@@ -422,11 +422,13 @@ function makeCard(o, isNew){
   if(o.categorie) pills += '<span class="cpill">'+(CATS_LABEL[o.categorie]||o.categorie)+'</span>';
   var d = document.createElement('div');
   d.className = 'card';
+  var cardId = 'card_'+o.id;
+  d.id = cardId;
   d.innerHTML =
     '<div class="cbg">'+img+'<div class="cgrad"></div></div>'+
     '<div class="ctop">'+
       (isNew?'<span class="bnew">NOUVEAU</span>':'<span></span>')+
-      '<span class="bts">'+o.prix+'€</span>'+
+      '<button onclick="removeCard(''+cardId+'')" style="background:rgba(0,0,0,.5);border:none;color:rgba(255,255,255,.7);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)">✕</button>'+
     '</div>'+
     '<div class="cactions">'+
       '<a href="'+o.url+'" target="_blank" class="bbuy">⚡</a>'+
@@ -456,6 +458,16 @@ function addCard(o, isNew){
   }
 }
 
+function removeCard(cardId){
+  var card = document.getElementById(cardId);
+  if(card){
+    card.style.transition='opacity .2s,transform .2s';
+    card.style.opacity='0';
+    card.style.transform='scale(.95)';
+    setTimeout(function(){ card.remove(); }, 200);
+  }
+}
+
 function reload(){
   renderedIds.clear();
   var feed = document.getElementById('feed');
@@ -475,34 +487,7 @@ async function loadInitial(){
   }catch(e){}
 }
 
-function connectSSE(){
-  if(sse) sse.close();
-  sse = new EventSource('/api/stream');
-  sse.onopen=function(){
-    document.getElementById('ldot').classList.add('on');
-    document.getElementById('ltxt').textContent='En direct';
-  };
-  sse.onmessage=function(e){
-    if(!e.data||e.data==='{}') return;
-    try{
-      var o=JSON.parse(e.data);
-      if(!o.id) return;
-      // Vérifier filtres côté client
-      if(selCats.length && selCats.indexOf(o.categorie)===-1) return;
-      if(selBrands.length && !selBrands.some(function(b){return (o.marque||'').toLowerCase().indexOf(b.toLowerCase())!==-1;})) return;
-      if(selTailles.length && !selTailles.some(function(t){return (o.taille||'').indexOf(t)!==-1;})) return;
-      if(pMin && o.prix<pMin) return;
-      if(pMax && o.prix>pMax) return;
-      addCard(o,true);
-    }catch(err){}
-  };
-  sse.onerror=function(){
-    document.getElementById('ldot').classList.remove('on');
-    document.getElementById('ltxt').textContent='Reconnexion...';
-    sse.close();
-    setTimeout(connectSSE,3000);
-  };
-}
+
 
 function toggleNotif(){
   if(!('Notification' in window)) return;
@@ -515,6 +500,78 @@ function toggleNotif(){
 }
 
 function scrollTop(){document.getElementById('feed').scrollTo({top:0,behavior:'smooth'});}
+
+var isLoadingMore = false;
+
+function addCard(o, isNew){
+  if(renderedIds.has(o.id)) return;
+  renderedIds.add(o.id);
+  var feed = document.getElementById('feed');
+  var w = feed.querySelector('.waiting');
+  if(w) feed.innerHTML='';
+  var card = makeCard(o, isNew);
+  if(isNew) feed.prepend(card); else feed.appendChild(card);
+  if(notifOn && isNew && Notification.permission==='granted'){
+    var n = new Notification((o.marque||o.categorie||'Vinted')+' — '+o.prix+'€',{body:o.titre,tag:o.id});
+    n.onclick=function(){window.open(o.url,'_blank');n.close();};
+    setTimeout(function(){n.close();},6000);
+  }
+}
+
+// SSE : ajouter directement en haut du feed
+function connectSSE(){
+  if(sse) sse.close();
+  sse = new EventSource('/api/stream');
+  sse.onopen=function(){
+    document.getElementById('ldot').classList.add('on');
+    document.getElementById('ltxt').textContent='En direct';
+  };
+  sse.onmessage=function(e){
+    if(!e.data||e.data==='{}') return;
+    try{
+      var o=JSON.parse(e.data);
+      if(!o.id||renderedIds.has(o.id)) return;
+      if(selCats.length && selCats.indexOf(o.categorie)===-1) return;
+      if(selBrands.length && !selBrands.some(function(b){return (o.marque||'').toLowerCase().indexOf(b.toLowerCase())!==-1;})) return;
+      if(selTailles.length && !selTailles.some(function(t){return (o.taille||'').indexOf(t)!==-1;})) return;
+      if(pMin && o.prix<pMin) return;
+      if(pMax && o.prix>pMax) return;
+      addCard(o, true);
+    }catch(err){}
+  };
+  sse.onerror=function(){
+    document.getElementById('ldot').classList.remove('on');
+    document.getElementById('ltxt').textContent='Reconnexion...';
+    sse.close();
+    setTimeout(connectSSE,3000);
+  };
+}
+
+// Scroll infini : quand on arrive en bas, charger plus
+var feed = document.getElementById('feed');
+feed.addEventListener('scroll', function(){
+  var near = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 300;
+  if(near && !isLoadingMore){
+    isLoadingMore = true;
+    fetch(buildUrl()).then(function(r){return r.json();}).then(function(d){
+      (d.articles||[]).forEach(function(o){ addCard(o, false); });
+      isLoadingMore = false;
+    }).catch(function(){ isLoadingMore = false; });
+  }
+});
+
+// Scroll infini
+document.getElementById('feed').addEventListener('scroll', function(){
+  var feed = this;
+  var near = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 400;
+  if(near && !isLoadingMore){
+    isLoadingMore = true;
+    fetch(buildUrl()).then(function(r){return r.json();}).then(function(d){
+      (d.articles||[]).forEach(function(o){ addCard(o, false); });
+      isLoadingMore = false;
+    }).catch(function(){ isLoadingMore = false; });
+  }
+});
 
 loadInitial();
 connectSSE();
