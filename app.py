@@ -1307,6 +1307,24 @@ def api_stream():
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     )
 
+@app.route("/api/reset-articles")
+def reset_articles():
+    try:
+        if USE_PG:
+            c = get_pg()
+            cur = c.cursor()
+            cur.execute("DELETE FROM articles")
+            c.commit(); cur.close(); c.close()
+        else:
+            c = sqlite3.connect(DB)
+            c.execute("DELETE FROM articles")
+            c.commit(); c.close()
+        with _ids_lock:
+            _ids_vus.clear()
+        return jsonify({"ok": True, "message": "Base vidée, le bot repart de zéro"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/debug")
 def api_debug():
     try:
