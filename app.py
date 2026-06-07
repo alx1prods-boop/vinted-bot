@@ -1319,9 +1319,7 @@ def reset_articles():
             c = sqlite3.connect(DB)
             c.execute("DELETE FROM articles")
             c.commit(); c.close()
-        with _ids_lock:
-            _ids_vus.clear()
-        return jsonify({"ok": True, "message": "Base vidée, le bot repart de zéro"})
+        return jsonify({"ok": True, "message": "Base videe, le bot repart de zero"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
