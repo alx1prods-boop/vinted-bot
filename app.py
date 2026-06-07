@@ -1307,7 +1307,7 @@ def api_stream():
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     )
 
-@app.route("/api/debug")@app.route("/api/debug")
+@app.route("/api/debug")
 def api_debug():
     try:
         session = get_session()
