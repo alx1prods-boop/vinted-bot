@@ -225,11 +225,11 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .dd-preset:hover{color:#fff}
 
 /* FEED VERTICAL */
-.feed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;padding:8px 12px;display:flex;flex-direction:column;gap:10px}
+.feed{flex:1;overflow-y:scroll;scrollbar-width:none;padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
 .feed::-webkit-scrollbar{display:none}
 
 /* CARTE */
-.card{height:42dvh;scroll-snap-align:start;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;flex-shrink:0;border-radius:16px}
+.card{height:280px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;border-radius:12px}
 .card-bg{position:absolute;inset:0;z-index:0}
 .card-img{width:100%;height:100%;object-fit:cover}
 .card-img-ph{width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:64px}
@@ -241,19 +241,19 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .badge-ts{background:rgba(0,0,0,.5);color:var(--t2);font-size:11px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(8px)}
 
 /* INFOS BAS */
-.card-info{position:relative;z-index:2;padding:16px 14px 20px}
+.card-info{position:relative;z-index:2;padding:8px 10px 10px}
 .card-prix-row{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
-.card-prix-main{font-size:28px;font-weight:800;line-height:1}
-.card-prix-frais{font-size:13px;color:var(--t2);text-decoration:line-through}
+.card-prix-main{font-size:18px;font-weight:800;line-height:1}
+.card-prix-frais{font-size:11px;color:var(--t2);text-decoration:line-through}
 .card-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.cpill{background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
-.card-titre{font-size:14px;color:rgba(255,255,255,.8);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cpill{background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500}
+.card-titre{font-size:11px;color:rgba(255,255,255,.8);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 /* BOUTON ACHAT */
-.card-actions{position:absolute;right:14px;bottom:80px;display:flex;flex-direction:column;gap:10px;z-index:2;align-items:center}
-.btn-flash{width:52px;height:52px;border-radius:50%;background:var(--acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(184,255,0,.4);transition:transform .15s}
+.card-actions{position:absolute;right:8px;bottom:70px;display:flex;flex-direction:column;gap:6px;z-index:2;align-items:center}
+.btn-flash{width:36px;height:36px;border-radius:50%;background:var(--acc);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 16px rgba(184,255,0,.4);transition:transform .15s}
 .btn-flash:hover{transform:scale(1.1)}
-.btn-see{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none}
+.btn-see{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;text-decoration:none}
 
 /* BARRE BAS */
 .bottombar{flex-shrink:0;background:rgba(10,10,10,.95);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.06);padding:10px 20px;display:flex;align-items:center;justify-content:space-around;z-index:10}
@@ -262,7 +262,7 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .bb-icon{font-size:20px}
 
 /* WAITING */
-.waiting-card{height:42dvh;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
+.waiting-card{height:280px;border-radius:12px;grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;scroll-snap-align:start;gap:12px;color:var(--t2);flex-shrink:0}
 .waiting-icon{font-size:48px}
 </style>
 </head><body>
