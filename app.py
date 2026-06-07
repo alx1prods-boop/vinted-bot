@@ -358,19 +358,37 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 
 <script>
 let seenIds = new Set();
+let renderedIds = new Set();
 let notifOn = false;
 let sseSource = null;
 let filters = {cats:[], marques:[], tailles:[], pMin:0, pMax:0};
 
 // ── DROPDOWN ─────────────────────────────────────────────────────────────────
 function toggleDD(id, pill, e) {
+  e.preventDefault();
   e.stopPropagation();
   const dd = document.getElementById(id);
   const wasOpen = dd.classList.contains('open');
   document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
-  if (!wasOpen) dd.classList.add('open');
+  if (!wasOpen) {
+    dd.classList.add('open');
+    // Positionner le dropdown sous le pill
+    const rect = pill.getBoundingClientRect();
+    dd.style.top = (rect.height + 6) + 'px';
+    dd.style.left = '0px';
+    dd.style.maxWidth = '90vw';
+  }
 }
-document.addEventListener('click', () => document.querySelectorAll('.dd').forEach(d => d.classList.remove('open')));
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.filter-pill')) {
+    document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
+  }
+});
+document.addEventListener('touchstart', function(e) {
+  if (!e.target.closest('.filter-pill')) {
+    document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
+  }
+});
 
 // ── FILTRES ───────────────────────────────────────────────────────────────────
 function onFilter() {
@@ -460,9 +478,9 @@ function makeCard(o, isNew) {
 }
 
 function addCard(o, isNew) {
-  if (seenIds.has(o.id)) return;
+  if (renderedIds.has(o.id)) return;
   if (!matchFilters(o)) return;
-  seenIds.add(o.id);
+  renderedIds.add(o.id);
 
   const feed = document.getElementById('feed');
   const waiting = feed.querySelector('.waiting-card');
@@ -503,6 +521,9 @@ function connectSSE() {
     try {
       var o = JSON.parse(e.data);
       if (!o.id) return;
+      // Ne pas bloquer les nouveaux articles SSE
+      if (renderedIds.has(o.id)) return;
+      seenIds.add(o.id);
       addCard(o, true);
     } catch(err) {}
   };
