@@ -427,8 +427,8 @@ function mkCard(o, isNew){
       '<button class="bdel" onclick="delCard(\'c'+o.id+'\')">✕</button>'+
     '</div>'+
     '<div class="cact">'+
-      '<a href="'+o.url+'" target="_blank" class="bbuy">⚡</a>'+
-      '<a href="'+o.url+'" target="_blank" class="bsee">↗</a>'+
+      '<a href="'+o.url+'" target="_blank" class="bbuy" title="Acheter">⚡</a>'+
+      '<a href="'+o.url+'" target="_blank" class="bsee" title="Voir l'article">🔍</a>'+
     '</div>'+
     '<div class="cinf">'+
       '<div class="cpr"><span class="cpx">'+o.prix+'€</span><span class="cfs">'+fr+'€ frais incl.</span></div>'+
