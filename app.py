@@ -208,7 +208,7 @@ body{background:var(--dark);color:var(--text);font-family:-apple-system,BlinkMac
 .filters::-webkit-scrollbar{display:none}
 .filter-pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--t2);padding:5px 12px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer;flex-shrink:0;position:relative;user-select:none;transition:all .15s}
 .filter-pill.active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:600}
-.dd{position:absolute;top:calc(100% + 8px);left:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:200px;max-height:300px;overflow-y:auto;z-index:100;display:none;box-shadow:0 8px 32px rgba(0,0,0,.8)}
+.dd{position:fixed;top:100px;left:12px;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);border-radius:14px;min-width:220px;max-width:calc(100vw - 24px);max-height:60vh;overflow-y:auto;z-index:1000;display:none;box-shadow:0 8px 32px rgba(0,0,0,.9)}
 .dd.open{display:block}
 .dd::-webkit-scrollbar{width:3px}
 .dd::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
@@ -371,12 +371,10 @@ function toggleDD(id, pill, e) {
   const wasOpen = dd.classList.contains('open');
   document.querySelectorAll('.dd').forEach(d => d.classList.remove('open'));
   if (!wasOpen) {
-    dd.classList.add('open');
-    // Positionner le dropdown sous le pill
     const rect = pill.getBoundingClientRect();
-    dd.style.top = (rect.height + 6) + 'px';
-    dd.style.left = '0px';
-    dd.style.maxWidth = '90vw';
+    dd.style.top = (rect.bottom + 6) + 'px';
+    dd.style.left = Math.max(12, rect.left) + 'px';
+    dd.classList.add('open');
   }
 }
 document.addEventListener('click', function(e) {
