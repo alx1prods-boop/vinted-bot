@@ -1,5 +1,11 @@
 import os, time, sqlite3, requests, threading, json, random
 import concurrent.futures
+try:
+    import psycopg2
+    import psycopg2.extras
+    USE_PG = bool(os.environ.get("DATABASE_URL"))
+except:
+    USE_PG = False
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, render_template_string
 from collections import defaultdict
@@ -29,30 +35,54 @@ CATEGORIES = [
 SEUIL_SOUS_COTE = 0.70  # alerte si prix < 70% du prix moyen de la niche
 
 # ── BASE DE DONNÉES ──────────────────────────────────────────────────────────
+def get_pg():
+    return psycopg2.connect(os.environ.get("DATABASE_URL"))
+
 def init_db():
-    c = sqlite3.connect(DB)
-    c.execute("""CREATE TABLE IF NOT EXISTS articles (
-        id TEXT PRIMARY KEY,
-        titre TEXT, marque TEXT, prix REAL,
-        categorie TEXT, taille TEXT,
-        nb_favoris INTEGER, nb_vues INTEGER,
-        date_publication TEXT, date_scraping TEXT,
-        url TEXT, vendu INTEGER DEFAULT 0,
-        photo_url TEXT DEFAULT '')""")
-    # Ajoute la colonne si elle n'existe pas encore
-    try:
-        c.execute("ALTER TABLE articles ADD COLUMN photo_url TEXT DEFAULT ''")
-    except:
-        pass
-    c.execute("""CREATE TABLE IF NOT EXISTS alertes_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        titre TEXT, marque TEXT, prix REAL, prix_moyen_niche REAL,
-        economie_pct INTEGER, categorie TEXT, url TEXT, date TEXT)""")
-    c.execute("""CREATE TABLE IF NOT EXISTS scans_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT, nb_nouveaux INTEGER, nb_total INTEGER)""")
-    c.commit()
-    c.close()
+    if USE_PG:
+        c = get_pg()
+        cur = c.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS articles (
+            id TEXT PRIMARY KEY,
+            titre TEXT, marque TEXT, prix REAL,
+            categorie TEXT, taille TEXT,
+            nb_favoris INTEGER, nb_vues INTEGER,
+            date_publication TEXT, date_scraping TEXT,
+            url TEXT, vendu INTEGER DEFAULT 0,
+            photo_url TEXT DEFAULT '')""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS alertes_log (
+            id SERIAL PRIMARY KEY,
+            titre TEXT, marque TEXT, prix REAL, prix_moyen_niche REAL,
+            economie_pct INTEGER, categorie TEXT, url TEXT, date TEXT)""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS scans_log (
+            id SERIAL PRIMARY KEY,
+            date TEXT, nb_nouveaux INTEGER, nb_total INTEGER)""")
+        c.commit()
+        cur.close()
+        c.close()
+    else:
+        c = sqlite3.connect(DB)
+        c.execute("""CREATE TABLE IF NOT EXISTS articles (
+            id TEXT PRIMARY KEY,
+            titre TEXT, marque TEXT, prix REAL,
+            categorie TEXT, taille TEXT,
+            nb_favoris INTEGER, nb_vues INTEGER,
+            date_publication TEXT, date_scraping TEXT,
+            url TEXT, vendu INTEGER DEFAULT 0,
+            photo_url TEXT DEFAULT '')""")
+        try:
+            c.execute("ALTER TABLE articles ADD COLUMN photo_url TEXT DEFAULT ''")
+        except:
+            pass
+        c.execute("""CREATE TABLE IF NOT EXISTS alertes_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titre TEXT, marque TEXT, prix REAL, prix_moyen_niche REAL,
+            economie_pct INTEGER, categorie TEXT, url TEXT, date TEXT)""")
+        c.execute("""CREATE TABLE IF NOT EXISTS scans_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT, nb_nouveaux INTEGER, nb_total INTEGER)""")
+        c.commit()
+        c.close()
 
 # ── SESSION ──────────────────────────────────────────────────────────────────
 USER_AGENTS = [
@@ -327,13 +357,15 @@ def scraper_categorie(session, cat, ids_vus, prix_moyens):
 
 def build_prix_moyens():
     try:
-        c = sqlite3.connect(DB)
-        rows = c.execute("""
-            SELECT marque, categorie, AVG(prix)
-            FROM articles WHERE marque != '' AND prix > 1
-            GROUP BY marque, categorie
-        """).fetchall()
-        c.close()
+        if USE_PG:
+            c = get_pg()
+            cur = c.cursor()
+            cur.execute("SELECT marque, categorie, AVG(prix) FROM articles WHERE marque != '' AND prix > 1 GROUP BY marque, categorie")
+            rows = cur.fetchall(); cur.close(); c.close()
+        else:
+            c = sqlite3.connect(DB)
+            rows = c.execute("SELECT marque, categorie, AVG(prix) FROM articles WHERE marque != '' AND prix > 1 GROUP BY marque, categorie").fetchall()
+            c.close()
         return {f"{r[0]}_{r[1]}": round(r[2], 2) for r in rows}
     except:
         return {}
