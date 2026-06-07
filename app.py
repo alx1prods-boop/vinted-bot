@@ -1,5 +1,6 @@
 import os, time, sqlite3, requests, threading, json, random
 import concurrent.futures
+import queue as _queue_module
 try:
     import psycopg2
     import psycopg2.extras
@@ -146,6 +147,70 @@ def telegram(msg):
             data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"},
             timeout=5)
     except:
+        pass
+
+DISCORD_TOKEN      = os.environ.get("DISCORD_TOKEN", "")
+DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID", "")
+
+def send_discord(art, economie_pct=0, prix_moy=0):
+    if not DISCORD_TOKEN or not DISCORD_CHANNEL_ID:
+        return
+    try:
+        # Construire l'embed Discord
+        color = 0xe94560  # rouge par défaut
+        if economie_pct > 25:
+            color = 0xff4d6d  # rouge vif
+        elif economie_pct > 10:
+            color = 0xffd166  # jaune
+        elif economie_pct > 0:
+            color = 0x00d68f  # vert
+
+        description = ""
+        if economie_pct > 0 and prix_moy > 0:
+            description = f"**-{economie_pct}% vs prix moyen** ({prix_moy}€)"
+
+        embed = {
+            "title": art["titre"][:256],
+            "url": art["url"],
+            "color": color,
+            "description": description,
+            "fields": [
+                {"name": "Prix", "value": f"**{art['prix']}€**", "inline": True},
+                {"name": "Marque", "value": art.get("marque") or "—", "inline": True},
+                {"name": "Taille", "value": art.get("taille") or "—", "inline": True},
+                {"name": "Catégorie", "value": art.get("categorie") or "—", "inline": True},
+                {"name": "Favoris", "value": str(art.get("nb_favoris", 0)), "inline": True},
+            ],
+            "footer": {"text": "VintedBot"},
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        if art.get("photo_url"):
+            embed["image"] = {"url": art["photo_url"]}
+
+        payload = {
+            "embeds": [embed],
+            "components": [{
+                "type": 1,
+                "components": [{
+                    "type": 2,
+                    "style": 5,
+                    "label": "Voir sur Vinted →",
+                    "url": art["url"]
+                }]
+            }]
+        }
+
+        requests.post(
+            f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages",
+            headers={
+                "Authorization": f"Bot {DISCORD_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=5
+        )
+    except Exception as e:
         pass
 
 # ── ANALYSE DES NICHES ───────────────────────────────────────────────────────
