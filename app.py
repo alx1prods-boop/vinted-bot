@@ -277,6 +277,10 @@ def verifier_sous_cote(article, prix_moyen_niche):
         return False
     return article["prix"] <= prix_moyen_niche * SEUIL_SOUS_COTE
 
+# ── QUEUE TEMPS RÉEL ─────────────────────────────────────────────────────────
+import queue
+new_articles_queue = queue.Queue(maxsize=200)
+
 # ── SCRAPER ──────────────────────────────────────────────────────────────────
 def scraper_categorie(session, cat, ids_vus, prix_moyens):
     nouveaux = []
@@ -452,6 +456,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 a.voir{font-size:11px;color:var(--blue);text-decoration:none}
 a.voir:hover{text-decoration:underline}
 .fullrow{grid-column:1/-1}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .chart-wrap{position:relative;width:100%}
 .empty{font-size:13px;color:var(--text2);padding:12px 0}
 .kw-cloud{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}
@@ -940,6 +945,94 @@ setInterval(async () => {
   } catch(e) {}
 }, 10000);
 
+// ── FEED TEMPS RÉEL SSE ───────────────────────────────────────────────────────
+let sseActive = false;
+let sseSource = null;
+
+function startSSE() {
+  if (sseActive) return;
+  sseActive = true;
+  sseSource = new EventSource('/api/stream');
+  sseSource.onmessage = function(e) {
+    if (!e.data || e.data === '{}') return;
+    try {
+      const o = JSON.parse(e.data);
+      if (!o.id) return;
+      // Vérifier si l'onglet opportunités est actif
+      const page = document.getElementById('page-opportunites');
+      if (!page || !page.classList.contains('active')) return;
+      prependArticle(o);
+      if (notifEnabled) checkNewOpps([o]);
+    } catch(err) {}
+  };
+  sseSource.onerror = function() {
+    sseActive = false;
+    setTimeout(startSSE, 5000);
+  };
+}
+
+function prependArticle(o) {
+  const feed = document.getElementById('oppFeed');
+  if (!feed) return;
+  // Retirer le message "aucun article" si présent
+  const empty = feed.querySelector('.empty');
+  if (empty) empty.remove();
+
+  // Créer le grid si pas encore présent
+  let grid = feed.querySelector('.opp-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className = 'opp-grid';
+    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px';
+    feed.prepend(grid);
+  }
+
+  const hasEco = o.economie_pct > 5 && o.prix_moy > 0;
+  const ecoCol = o.economie_pct > 25 ? '#ff4d6d' : o.economie_pct > 10 ? '#ffd166' : '#00d68f';
+  const img    = o.photo_url ? `<img src="${o.photo_url}" style="width:100%;height:180px;object-fit:cover;border-radius:8px 8px 0 0;display:block" loading="lazy" onerror="this.style.display='none'">` : '';
+  const placeholder = o.photo_url ? '' : `<div style="width:100%;height:180px;background:var(--surface2);border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:11px">${o.categorie||''}</div>`;
+
+  const card = document.createElement('div');
+  card.style.cssText = `background:var(--surface);border:1px solid rgba(0,214,143,.4);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;animation:fadeIn .4s ease`;
+  card.innerHTML = `
+    <div style="position:relative">
+      ${img}${placeholder}
+      <span style="position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;background:#00d68f;color:#000;padding:2px 7px;border-radius:20px">NOUVEAU</span>
+      ${hasEco ? `<span style="position:absolute;top:8px;right:8px;font-size:11px;font-weight:700;background:${ecoCol};color:#000;padding:2px 8px;border-radius:20px">-${o.economie_pct}%</span>` : ''}
+    </div>
+    <div style="padding:10px;flex:1;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:10px;color:var(--text2)">${o.categorie||''} · à l'instant</div>
+      <div style="font-size:13px;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${o.titre||''}</div>
+      ${o.marque && o.marque !== '—' ? `<div style="font-size:11px;font-weight:600;color:var(--accent)">${o.marque}</div>` : ''}
+      <div style="display:flex;align-items:baseline;gap:6px;margin-top:2px">
+        <span style="font-size:16px;font-weight:700">${o.prix}€</span>
+        ${hasEco ? `<span style="font-size:11px;color:var(--text2);text-decoration:line-through">${o.prix_moy}€</span>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text2)">❤️ ${o.nb_favoris||0}</div>
+      <div style="margin-top:6px">
+        <a href="${o.url}" target="_blank" style="display:block;background:var(--accent);color:#fff;font-size:12px;font-weight:600;padding:7px 0;border-radius:7px;text-decoration:none;text-align:center">Acheter</a>
+      </div>
+    </div>`;
+
+  grid.prepend(card);
+
+  // Limiter à 100 cartes pour les perfs
+  const cards = grid.children;
+  while (cards.length > 100) grid.removeChild(grid.lastChild);
+
+  // Supprimer le badge NOUVEAU après 30s
+  setTimeout(() => {
+    card.style.borderColor = 'var(--border)';
+    const badge = card.querySelector('span[style*="00d68f"]');
+    if (badge) badge.remove();
+  }, 30000);
+}
+
+// Démarrer SSE quand on clique sur Opportunités
+document.getElementById('btnOpportunites').addEventListener('click', function() {
+  setTimeout(function(){ loadOpps(); startSSE(); }, 150);
+});
+
 refresh();
 setInterval(refresh, 20000);
 // Load opps on tab click and auto-refresh
@@ -1193,7 +1286,28 @@ def api_opportunites():
         import traceback
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
-@app.route("/api/debug")
+
+@app.route("/api/stream")
+def api_stream():
+    from flask import Response, stream_with_context
+    import json as _json
+    def generate():
+        ping = "data: {}" + chr(10) + chr(10)
+        yield ping
+        while True:
+            try:
+                art = new_articles_queue.get(timeout=25)
+                line = "data: " + _json.dumps(art, ensure_ascii=False) + chr(10) + chr(10)
+                yield line
+            except queue.Empty:
+                yield ": ping" + chr(10) + chr(10)
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
+
+@app.route("/api/debug")@app.route("/api/debug")
 def api_debug():
     try:
         session = get_session()
