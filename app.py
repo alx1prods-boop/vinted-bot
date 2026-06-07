@@ -428,7 +428,7 @@ function mkCard(o, isNew){
     '</div>'+
     '<div class="cact">'+
       '<a href="'+o.url+'" target="_blank" class="bbuy" title="Acheter">⚡</a>'+
-      '<a href="'+o.url+'" target="_blank" class="bsee" title="Voir l'article">🔍</a>'+
+      '<a href="'+o.url+'" target="_blank" class="bsee">🔍</a>'+
     '</div>'+
     '<div class="cinf">'+
       '<div class="cpr"><span class="cpx">'+o.prix+'€</span><span class="cfs">'+fr+'€ frais incl.</span></div>'+
