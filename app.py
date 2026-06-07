@@ -308,12 +308,21 @@ def scraper_categorie(session, cat, ids_vus, prix_moyens):
         if photos:
             photo_url = photos[0].get("url", "") or photos[0].get("full_size_url", "") or photos[0].get("thumbnails", [{}])[-1].get("url", "") if photos[0].get("thumbnails") else ""
 
+        # Récupère la vraie catégorie depuis les données Vinted
+        cat_vinted = ""
+        if item.get("catalog"):
+            cat_vinted = item["catalog"].get("title", "")
+        elif item.get("category"):
+            cat_vinted = item["category"].get("title", "")
+        if not cat_vinted:
+            cat_vinted = cat["nom"]  # fallback sur notre catégorie
+
         art = {
             "id":               iid,
             "titre":            item.get("title", ""),
             "marque":           marque,
             "prix":             prix,
-            "categorie":        cat["nom"],
+            "categorie":        cat_vinted,
             "taille":           item.get("size_title", ""),
             "nb_favoris":       item.get("favourite_count", 0),
             "nb_vues":          item.get("view_count", 0),
@@ -1312,13 +1321,28 @@ def api_debug():
     try:
         session = get_session()
         proxy_used = str(session.proxies) if session.proxies else "aucun"
-        r = session.get("https://www.vinted.fr/api/v2/catalog/items?catalog_ids=4&page=1&per_page=5&order=newest_first", timeout=10)
+        r = session.get("https://www.vinted.fr/api/v2/catalog/items?catalog_ids=4&page=1&per_page=2&order=newest_first", timeout=10)
+        data = r.json()
+        items = data.get("items", [])
+        sample = {}
+        if items:
+            item = items[0]
+            sample = {
+                "title": item.get("title"),
+                "brand": item.get("brand_title"),
+                "catalog": item.get("catalog"),
+                "category": item.get("category"),
+                "category_id": item.get("category_id"),
+                "catalog_id": item.get("catalog_id"),
+                "size_title": item.get("size_title"),
+            }
         return jsonify({
             "proxy": proxy_used,
             "status": r.status_code,
-            "nb_items": len(r.json().get("items", [])),
+            "nb_items": len(items),
             "use_pg": USE_PG,
             "proxies_count": len(PROXIES),
+            "sample_item": sample,
         })
     except Exception as e:
         import traceback
