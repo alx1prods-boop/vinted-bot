@@ -120,8 +120,34 @@ def scanner_cat(cat):
         except: session = get_session(); time.sleep(random.uniform(3, 8))
         time.sleep(random.uniform(1.5, 3))
 
+_vinted_cats = []
+_vinted_cats_lock = threading.Lock()
+
+def load_vinted_cats():
+    global _vinted_cats
+    time.sleep(3)
+    try:
+        s = get_session()
+        r = s.get("https://www.vinted.fr/api/v2/catalogs", timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            cats = []
+            def extract(items, parent=""):
+                for item in items:
+                    title = item.get("title","")
+                    url_id = item.get("id","")
+                    cats.append({"id": url_id, "title": title, "parent": parent})
+                    if item.get("catalogs"):
+                        extract(item["catalogs"], title)
+            extract(data.get("catalogs",[]))
+            with _vinted_cats_lock:
+                _vinted_cats = cats
+    except:
+        pass
+
 def start_scanner():
     time.sleep(2)
+    threading.Thread(target=load_vinted_cats, daemon=True).start()
     for cat in CATEGORIES:
         threading.Thread(target=scanner_cat, args=(cat,), daemon=True).start()
         time.sleep(0.3)
@@ -142,6 +168,11 @@ def api_stream():
                 yield ": ping" + chr(10) + chr(10)
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+@app.route("/api/cats")
+def api_cats():
+    with _vinted_cats_lock:
+        return jsonify({"cats": _vinted_cats})
 
 @app.route("/api/feed")
 def api_feed():
@@ -348,6 +379,14 @@ document.addEventListener('click', function(){
 });
 
 function togC(v, el){ e_stop(); toggle(v, sC, el, 'fpCat', 'lCat'); reload(); }
+
+function matchCat(o, cats){
+  if(!cats.length) return true;
+  // Correspondance exacte ou partielle (cat parente)
+  return cats.some(function(c){
+    return o.categorie === c || (o.categorie||'').toLowerCase().indexOf(c.toLowerCase()) > -1;
+  });
+}
 function togB(v, el){ e_stop(); toggle(v, sB, el, 'fpMar', 'lMar'); reload(); }
 function togT(v, el){ e_stop(); toggle(v, sT, el, 'fpTai', 'lTai'); reload(); }
 
